@@ -36,7 +36,7 @@ const linkData = [
   },
   {
     label: "To Do",
-    link: "remaining/todo",
+    link: "todo/todo",
     icon: <MdOutlinePendingActions />,
   },
   {
@@ -52,12 +52,13 @@ const linkData = [
 ];
 
 const Sidebar = () => {
-  const { user } = useSelector((state) => state.auth);
+  let { user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const location = useLocation();
 
   const path = location.pathname.split("/")[1];
-  const sidebarLinks = user?.isAdmin ? linkData : linkData.slice(0, 5);
+  // const sidebarLinks = user?.isAdmin ? linkData : linkData.slice(0, 5);
+  const sidebarLinks = linkData;
 
   const closeSidebar = () => {
     dispatch(setIsSidebarOpen(false));
