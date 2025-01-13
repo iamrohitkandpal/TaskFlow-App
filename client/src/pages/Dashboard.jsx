@@ -20,7 +20,7 @@ const TaskTable = ({ tasks }) => {
   const ICONS = {
     high: <MdKeyboardDoubleArrowUp />,
     medium: <MdKeyboardArrowUp />,
-    low: <MdKeyboardArrowDown />,
+    normal: <MdKeyboardArrowDown />,
   };
 
   const TaskHeader = () => (
