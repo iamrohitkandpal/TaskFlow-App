@@ -14,6 +14,7 @@ import { setIsSidebarOpen } from "./redux/slices/authSlice";
 import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
+import Settings from "./pages/Settings";
 
 function Layout() {
   const location = useLocation();
@@ -98,6 +99,7 @@ function App() {
           <Route path="/team" element={<Users />} />
           <Route path="/trashed" element={<Trash />} />
           <Route path="/task/:id" element={<TaskDetails />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
 
         <Route path="/login" element={<Login />} />

@@ -1,16 +1,31 @@
-import { Button } from "@headlessui/react";
 import React, { useState } from "react";
 import { IoMdAdd } from "react-icons/io";
 import Title from "../components/Title";
 import { summary } from "../assets/data";
 import { getInitials } from "../utils";
 import clsx from "clsx";
+import ConfirmationDialog, { UserAction } from './../components/Dialogs';
+import AddUser from './../components/AddUser';
+import Button from "../components/Button";
 
 const Users = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [open, setOpen] = useState(false);
   const [openAction, setOpenAction] = useState(false);
   const [selected, setSelected] = useState(null);
+
+  const userActionHandler = (action) => {}
+  const deleteHandler = (action) => {}
+
+  const deleteClick = (id) => {
+    setSelected(id);
+    setOpenDialog(true);
+  };
+
+  const editClick = (user) => {
+    setSelected(user);
+    setOpen(true);
+  };
 
   const TableHeader = () => (
     <thead className="border-b border-gray-300">
@@ -97,6 +112,25 @@ const Users = () => {
           </div>
         </div>
       </div>
+
+      <AddUser
+        open={open}
+        setOpen={setOpen}
+        userData={selected}
+        key={new Date().getTime().toString()}
+      />
+
+      <ConfirmationDialog
+        open={openDialog}
+        setOpen={setOpenDialog}
+        onClick={deleteHandler}
+      />
+
+      <UserAction
+        open={openAction}
+        setOpen={setOpenAction}
+        onClick={userActionHandler}
+      />
     </>
   );
 };

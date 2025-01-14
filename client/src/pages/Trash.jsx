@@ -11,6 +11,7 @@ import { tasks } from "../assets/data";
 import Title from "../components/Title";
 import Button from "../components/Button";
 import { PRIOTITYSTYELS, TASK_TYPE } from "../utils";
+import ConfirmationDialog from "../components/Dialogs";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -24,6 +25,31 @@ const Trash = () => {
   const [msg, setMsg] = useState(null);
   const [type, setType] = useState("delete");
   const [selected, setSelected] = useState("");
+
+  const deleteAllClick = () => {
+    setType("deleteAll");
+    setMsg("Do you want to delete all tasks permanently?");
+    setOpenDialog(true);
+  };
+  
+  const restoreAllClick = () => {
+    setType("restoreAll");
+    setMsg("Do you want to restore all tasks of the trash?");
+    setOpenDialog(true);
+  };
+
+  const deleteClick = (id) => {
+    setType("delete");
+    setSelected(id);
+    setOpenDialog(true);
+  };
+
+  const restoreClick = (id) => {
+    setSelected(id);
+    setType("restore");
+    setMsg("Do you want to restore the selected item?");
+    setOpenDialog(true);
+  };
 
   const TableHeader = () => (
     <thead className="border-b border-gray-300">
@@ -110,38 +136,18 @@ const Trash = () => {
           </div>
         </div>
       </div>
-      <div className="w-full md:px-1 px-0 mb-6">
-        <div className="flex items-center justify-between mb-8">
-          <Title title="Trashed Tasks" />
 
-          <div className="flex gap-2 md:gap-4 items-center">
-            <Button
-              label="Restore All"
-              icon={<MdOutlineRestore className="text-lg hidden md:flex" />}
-              className="flex flex-row-reverse gap-1 items-center  text-black text-sm md:text-base rounded-md 2xl:py-2.5"
-              onClick={() => restoreAllClick()}
-            />
-            <Button
-              label="Delete All"
-              icon={<MdDelete className="text-lg hidden md:flex" />}
-              className="flex flex-row-reverse gap-1 items-center  text-red-600 text-sm md:text-base rounded-md 2xl:py-2.5"
-              onClick={() => deleteAllClick()}
-            />
-          </div>
-        </div>
-        <div className="bg-white px-2 md:px-6 py-4 shadow-md rounded">
-          <div className="overflow-x-auto">
-            <table className="w-full mb-5">
-              <TableHeader />
-              <tbody>
-                {tasks?.map((tk, id) => (
-                  <TableRow key={id} item={tk} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      {/* <AddUser open={open} setOpen={setOpen} /> */}
+
+      <ConfirmationDialog
+        open={openDialog}
+        setOpen={setOpenDialog}
+        msg={msg}
+        setMsg={setMsg}
+        type={type}
+        setType={setType}
+        onClick={() => deleteRestoreHandler()}
+      />
     </>
   );
 };
