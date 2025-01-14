@@ -11,6 +11,7 @@ import TaskDialog from "./task/TaskDialog";
 import { BiMessageDetail } from "react-icons/bi";
 import UserInfo from "./UserInfo";
 import { IoMdAdd } from "react-icons/io";
+import AddSubTask from "./task/AddSubtask";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -37,6 +38,7 @@ function TaskCard({ task }) {
           </div>
 
           {user?.isAdmin && <TaskDialog task={task} />}
+          {/* <TaskDialog task={task} /> // Replace this line with the line above for testing */}
         </div>
 
         <>
@@ -76,7 +78,7 @@ function TaskCard({ task }) {
 
         {/* Sub-Tasks */}
         {task?.subTasks?.length > 0 ? (
-          <div className="py-4 border-t border-gray-200 opacity-70">
+          <div className="py-4 border-t flex flex-col gap-2 border-gray-200 opacity-70">
             <h5 className="text-base line-clamp-1 text-black">
               {task?.subTasks[0].title}
             </h5>
@@ -99,12 +101,18 @@ function TaskCard({ task }) {
         )}
 
         <div className="w-full pb-2">
-            <button disabled={user?.isAdmin ? false : true} className="w-full flex gap-4 items-center text-sm text-gray-500 font-semibold disabled:cursor-not-allowed disabled:text-gray-300">
-                <IoMdAdd className="text-lg" />
-                <span>Add Subtask</span>
-            </button>
+          <button
+            onClick={() => setOpen(true)}
+            disabled={user?.isAdmin ? false : true}
+            className="w-full flex gap-4 items-center text-sm text-gray-500 font-semibold disabled:cursor-not-allowed disabled:text-gray-300"
+          >
+            <IoMdAdd className="text-lg" />
+            <span>Add Subtask</span>
+          </button>
         </div>
       </div>
+
+      <AddSubTask open={open} setOpen={setOpen} id={task._id} />
     </>
   );
 }

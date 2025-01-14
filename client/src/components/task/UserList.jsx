@@ -6,7 +6,7 @@ import {
   Transition,
 } from "@headlessui/react";
 import clsx from "clsx";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { summary } from "../../assets/data";
 import { getInitials } from "../../utils";
 import { BsChevronExpand } from "react-icons/bs";
@@ -21,6 +21,14 @@ const UserList = ({ setTeam, team }) => {
     setTeam(selected);
   };
 
+  useEffect(() => {
+    if(team?.length < 1) {
+        data && setSelectedUsers([data[0]]);
+    } else {
+        setSelectedUsers(team);
+    }
+  }, []);
+
   return (
     <div>
       <p className="text-gray-700 mb-1">Assign Task To:</p>
@@ -32,7 +40,7 @@ const UserList = ({ setTeam, team }) => {
           >
             <span className="block truncate text-base text-gray-900">
               {selectedUsers?.length > 0
-                ? selectedUsers.map((user) => user.name).join(", ")
+                ? selectedUsers.map((user) => user?.name).join(", ")
                 : <p className="text-gray-400">Select Users</p>}
             </span>
             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -71,10 +79,10 @@ const UserList = ({ setTeam, team }) => {
                       >
                         <div className="w-6 h-6 rounded-full bg-violet-600 text-white flex items-center justify-center">
                           <span className="text-center text-[10px]">
-                            {getInitials(user.name)}
+                            {getInitials(user?.name)}
                           </span>
                         </div>
-                        <span>{user.name}</span>
+                        <span>{user?.name}</span>
                       </div>
                       {selected && (
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600">
