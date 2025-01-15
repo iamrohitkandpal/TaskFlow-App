@@ -3,12 +3,19 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import Textbox from "../components/Textbox";
 import Button from "../components/Button";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { useLoginMutation } from "../redux/slices/api/authApiSlice";
+import { toast } from "sonner";
+import { setCredentials } from "../redux/slices/authSlice";
+import Loader from "../components/Loader";
 
 const Login = () => {
   const {user} = useSelector((state) => state.auth);
 
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [login, {isLoading}] = useLoginMutation();
+
   const {
     register,
     handleSubmit,
@@ -19,8 +26,18 @@ const Login = () => {
     user && navigate("/dashboard");
   }, [user, navigate]);
 
-  const submitHandler = async () => {
-    console.log("Submit");
+  const submitHandler = async (data) => {
+    try {
+      const result = await login(data);
+      console.log("Logged in successfully", result);
+
+      dispatch(setCredentials(result));
+      toast.success("Logged in successfully");
+      navigate("/");
+    } catch (error) {
+      console.log("Error logging in", error);
+      toast.error(error?.data?.message || error?.message);
+    }
   };
 
   return (
@@ -86,11 +103,11 @@ const Login = () => {
                 Forget Password?
               </span>
 
-              <Button
+              {isLoading ? <Loader /> : <Button
                 type="submit"
                 label="Login"
                 className="w-full rounded-full bg-blue-600 h-10 text-white transition-all hover:bg-blue-700"
-              />
+              />}
             </div>
           </form>
         </div>

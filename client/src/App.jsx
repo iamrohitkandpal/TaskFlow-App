@@ -18,9 +18,9 @@ import Settings from "./pages/Settings";
 
 function Layout() {
   const location = useLocation();
-  const user = true;
-  // const {user} = useSelector((state) => state.auth);
-  // console.log("User is logged in:", user);
+
+  const {user} = useSelector((state) => state.auth);
+  console.log(user);
 
   return user ? (
     <div className="w-full h-screen flex flex-col md:flex-row">
