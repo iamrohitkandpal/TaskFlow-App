@@ -1,15 +1,21 @@
 import User from "../models/user.model.js";
 import Task from "../models/task.model.js";
 import Notice from "../models/notification.model.js";
+import mongoose from "mongoose";
 
 export const createTask = async (req, res) => {
   try {
     const { userId } = req.user;
     const { title, team, stage, date, priority, assets } = req.body;
 
+    // Validate and convert `team` array elements to ObjectId
+    const teamObjectIds = Array.isArray(team)
+      ? team.map((memberId) => new mongoose.Types.ObjectId(memberId))
+      : [];
+
     let text = "New task has been assigned to you";
-    if (team?.length > 1) {
-      text += ` and ${team.length - 1} others.`;
+    if (teamObjectIds.length > 1) {
+      text += ` and ${teamObjectIds.length - 1} others.`;
     }
 
     text += ` Task Priority is ${priority}, so work on it accordingly. Assigned on ${new Date(
@@ -24,16 +30,16 @@ export const createTask = async (req, res) => {
 
     const task = await Task.create({
       title,
-      team,
+      team: teamObjectIds,
       stage: stage?.toLowerCase(),
       date,
       priority: priority?.toLowerCase(),
       assets,
-      activities: [activity],
+      activities: activity,
     });
 
     await Notice.create({
-      team,
+      team: teamObjectIds,
       text,
       task: task._id,
     });

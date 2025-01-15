@@ -12,12 +12,13 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      state.user = action.payload;
-      localStorage.setItem("userInfo", JSON.stringify(action.payload));
+      const user = action.payload.data.user;
+      state.user = user;
+      localStorage.setItem("userInfo", JSON.stringify(user));
     },
-    logout: (state, action) => {
-        state.user = null;
-        localStorage.removeItem("userInfo");
+    logout: (state) => {
+      state.user = null;
+      localStorage.removeItem("userInfo");
     },
     setIsSidebarOpen: (state, action) => {
       state.isSidebarOpen = action.payload;

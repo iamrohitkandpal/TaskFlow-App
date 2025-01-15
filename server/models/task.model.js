@@ -41,22 +41,14 @@ const taskSchema = new mongoose.Schema(
     ],
     subTasks: [
       {
-        title: { type: String, required: true },
-        date: { type: Date, default: () => new Date() },
-        tag: { type: String },
+        title: String,
+        date: Date,
+        tag: String,
       },
     ],
     assets: [String],
-    team: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    isTrashed: {
-      type: Boolean,
-      default: false,
-    },
+    team: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    isTrashed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

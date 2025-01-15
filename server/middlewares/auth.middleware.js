@@ -3,7 +3,7 @@ import User from "../models/user.model.js";
 
 const protectedRoute = async (req, res, next) => {
   try {
-    let token = req.cookie.token;
+    let token = req.cookies?.token;
 
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -18,6 +18,10 @@ const protectedRoute = async (req, res, next) => {
       };
 
       next();
+    } else {
+      return res
+        .status(401)
+        .json({ status: false, message: "Not Authorized, Login Again" });
     }
   } catch (error) {
     console.log("Error in protectedRoute middleware:", error.message);
