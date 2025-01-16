@@ -24,25 +24,31 @@ const AddUser = ({ open, setOpen, userData }) => {
   const dispatch = useDispatch();
 
   const [addNewUser, { isLoading }] = useRegisterMutation();
-  const [updateUser, {isLoading: isUpdating}] = useUpdateUserMutation();
+  const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
 
   const handleOnSubmit = async (data) => {
     try {
-      if(userData) {
+      if (userData) {
         const result = await updateUser(data).unwrap();
         toast.success("User Details Updated");
 
-        if(userData._id === user._id) {
-          dispatch(setCredentials({...result.user}));
+        // Ensure the result structure matches what your Redux expects
+        if (userData?._id === user?._id) {
+          dispatch(setCredentials({
+            data: {user: result?.user},
+          }));
         }
       } else {
-        const result = await addNewUser({...data, password: data.email}).unwrap();
+        await addNewUser({
+          ...data,
+          password: data.email,
+        }).unwrap();
         toast.success("New User Added");
       }
 
       setTimeout(() => {
         setOpen(false);
-      }, 1500)
+      }, 1500);
     } catch (error) {
       console.log("Error in handleOnSubmit of addUser: ", error);
       toast.error("Something went wrong");
