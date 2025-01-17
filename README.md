@@ -6,25 +6,6 @@
 
 ---
 
-## **Project Details**  
-
-### Developer Information  
-- **Name:** Rohit Navinchandra Kandpal  
-- **Company:** CODTECH IT SOLUTIONS PVT. LTD.  
-- **Employee ID:** CT08DHC  
-- **Domain:** Full Stack Web Development  
-
-### Internship Duration  
-- **Start Date:** 20th December 2024  
-- **End Date:** 20th January 2025  
-
-### Mentor  
-- **Name:** Neela Santhosh Kumar  
-
-This project is part of my professional journey at CODTECH IT SOLUTIONS, showcasing my expertise in full-stack web development and dedication to building innovative solutions under expert guidance.  
-
----
-
 ## ⚠️ **Project Status: Ongoing** ⚠️  
 
 TaskFlow is currently an **active development project**, and we're working hard to refine its features and enhance its functionality. The project is **in beta phase**, with several features already implemented, but there are some **known bugs** and **areas requiring improvement**.  
@@ -214,7 +195,7 @@ This project is licensed under the [MIT License](LICENSE). Feel free to use and 
 
 ## 💬 **Support**
 
-Have questions or feedback? Reach out via [GitHub Issues](https://github.com/iamrohitkandpal/taskflow-web-app/issues) or email us at `iamrohitkandpal@gmail.com`. 
+Have questions or feedback? Reach out via [GitHub Issues](https://github.com/iamrohitkandpal/TaskFlow-App/issues) or email us at `iamrohitkandpal@gmail.com`. 
 
 ---
 
