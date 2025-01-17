@@ -214,8 +214,7 @@ This project is licensed under the [MIT License](LICENSE). Feel free to use and 
 
 ## 💬 **Support**
 
-Have questions or feedback? Reach out via [GitHub Issues](https://github.com/yourusername/taskflow-web-app/issues) or email us at `support@taskflow.com`. 
+Have questions or feedback? Reach out via [GitHub Issues](https://github.com/iamrohitkandpal/taskflow-web-app/issues) or email us at `iamrohitkandpal@gmail.com`. 
 
 ---
 
-This version adds visual flair, detailed descriptions, and emphasizes the ongoing development nature of the project. Let me know if you'd like additional refinements!
