@@ -10,11 +10,12 @@ import { LuClipboardPen } from "react-icons/lu";
 import { FaNewspaper, FaUsers } from "react-icons/fa";
 import { FaArrowsToDot } from "react-icons/fa6";
 import moment from "moment";
-import { summary } from "../assets/data";
 import clsx from "clsx";
 import Chart from "../components/Chart";
 import { BGS, getInitials, PRIOTITYSTYELS, TASK_TYPE } from "../utils";
 import UserInfo from "../components/UserInfo";
+import { useGetDashboardStatsQuery } from "../redux/slices/api/taskApiSlice";
+import Loader from "./../components/Loader";
 
 const TaskTable = ({ tasks }) => {
   const ICONS = {
@@ -51,7 +52,9 @@ const TaskTable = ({ tasks }) => {
           <span className={clsx("text-lg", PRIOTITYSTYELS[task.priority])}>
             {ICONS[task.priority]}
           </span>
-          <span className="capitalize text-base text-[0.90rem]">{task.priority}</span>
+          <span className="capitalize text-base text-[0.90rem]">
+            {task.priority}
+          </span>
         </div>
       </td>
 
@@ -122,7 +125,12 @@ const UserTable = ({ users }) => {
       </td>
 
       <td>
-        <p className={clsx("text-sm w-fit px-3 py-1 rounded-full", user?.isActive ? "bg-blue-200" : "bg-yellow-100")}>
+        <p
+          className={clsx(
+            "text-sm w-fit px-3 py-1 rounded-full",
+            user?.isActive ? "bg-blue-200" : "bg-yellow-100"
+          )}
+        >
           {user?.isActive ? "Active" : "Inactive"}
         </p>
       </td>
@@ -146,13 +154,23 @@ const UserTable = ({ users }) => {
 };
 
 const Dashboard = () => {
-  const totals = summary.tasks;
+  const { data, isLoading, error } = useGetDashboardStatsQuery();
+  console.log(data);
+
+  if (isLoading)
+    return (
+      <div className="py-10">
+        <Loader />
+      </div>
+    );
+
+  const totals = data?.tasks;
 
   const stats = [
     {
       _id: "1",
       label: "TOTAL TASK",
-      total: summary?.totalTasks || 0,
+      total: data?.totalTasks || 0,
       icon: <FaNewspaper />,
       bg: "bg-[#1d4ed8]",
     },
@@ -165,7 +183,7 @@ const Dashboard = () => {
     },
     {
       _id: "3",
-      label: "TASK IN PROGRESS ",
+      label: "IN PROGRESS",
       total: totals["in progress"] || 0,
       icon: <LuClipboardPen />,
       bg: "bg-[#f59e0b]",
@@ -212,15 +230,15 @@ const Dashboard = () => {
         <h4 className="text-xl text-gray-600 font-semibold">
           Priority Based Chart
         </h4>
-        <Chart />
+        <Chart data={data?.graphData} />
       </div>
 
       <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
         {/* left side */}
-        <TaskTable tasks={summary.last10Task} />
+        <TaskTable tasks={data?.last10Task} />
 
         {/* right side */}
-        <UserTable users={summary.users} />
+        <UserTable users={data?.users} />
       </div>
     </div>
   );

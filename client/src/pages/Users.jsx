@@ -13,6 +13,7 @@ import {
   useUserActionsMutation,
 } from "../redux/slices/api/userApiSlice";
 import { toast } from "sonner";
+import Loader from "../components/Loader";
 
 const Users = () => {
   const [openDialog, setOpenDialog] = useState(false);
@@ -59,6 +60,14 @@ const Users = () => {
       toast.error(error?.data?.message || "Something went wrong");
     }
   };
+
+  if(isLoading) {
+    return (
+      <div className="py-10">
+        <Loader />
+      </div>
+    )
+  }
 
   const deleteClick = (id) => {
     setSelected(id);
@@ -133,6 +142,7 @@ const Users = () => {
       </td>
     </tr>
   );
+
 
   return (
     <>

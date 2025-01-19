@@ -19,6 +19,10 @@ import Tabs from "../components/Tabs";
 import { PRIOTITYSTYELS, TASK_TYPE, getInitials } from "../utils";
 import Loader from "../components/Loader";
 import Button from "../components/Button";
+import {
+  useGetSingleTaskQuery,
+  usePostTaskActivityMutation,
+} from "../redux/slices/api/taskApiSlice";
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
@@ -88,9 +92,18 @@ const act_types = [
 
 const TaskDetails = () => {
   const { id } = useParams();
+  const { data, isLoading, refetch } = useGetSingleTaskQuery(id);
 
   const [selected, setSelected] = useState(0);
-  const task = tasks[3];
+  // console.log(data);
+  const task = data?.task;
+
+  if (isLoading)
+    return (
+      <div className="py-10">
+        <Loader />
+      </div>
+    );
 
   return (
     <div className="w-full flex flex-col gap-3 mb-4 overflow-y-hidden">
@@ -220,7 +233,11 @@ const TaskDetails = () => {
           </>
         ) : (
           <>
-            <Activities activity={task?.activities} id={id} />
+            <Activities
+              activity={data?.task?.activities}
+              id={id}
+              refetch={refetch}
+            />
           </>
         )}
       </Tabs>
@@ -228,12 +245,31 @@ const TaskDetails = () => {
   );
 };
 
-const Activities = ({ activity, id }) => {
+const Activities = ({ activity, id, refetch }) => {
   const [selected, setSelected] = useState(act_types[0]);
   const [text, setText] = useState("");
-  const isLoading = false;
 
-  const handleSubmit = async () => {};
+  const [postTaskActivity, { isLoading }] = usePostTaskActivityMutation();
+
+  const handleSubmit = async () => {
+    try {
+      const activityData = {
+        type: selected?.toLowerCase(),
+        activity: text,
+      };
+      const result = await postTaskActivity({
+        data: activityData,
+        id
+      }).unwrap();
+      setText("");
+      refetch();
+
+      toast.success(result?.message || "Activity added successfully");
+    } catch (error) {
+      console.log("Error in handleSubmit:", error.message);
+      toast.error(error?.data?.message || "Something went wrong");
+    }
+  };
 
   const Card = ({ item }) => {
     return (
