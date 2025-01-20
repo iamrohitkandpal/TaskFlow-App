@@ -7,11 +7,17 @@ export const createTask = async (req, res) => {
   try {
     const { userId } = req.user;
     const { title, team, stage, date, priority, assets } = req.body;
+    // console.log("req.body", req.body);
 
     // Validate and convert `team` array elements to ObjectId
     const teamObjectIds = Array.isArray(team)
-      ? team.map((memberId) => new mongoose.Types.ObjectId(memberId))
+      ? team
+          .map((member) => member._id) // Extract `_id` field
+          .filter(mongoose.Types.ObjectId.isValid) // Validate ObjectId
+          .map((memberId) => new mongoose.Types.ObjectId(memberId)) // Convert to ObjectId
       : [];
+
+    // console.log("teamObjectIds", teamObjectIds);
 
     let text = "New task has been assigned to you";
     if (teamObjectIds.length > 1) {
@@ -44,7 +50,15 @@ export const createTask = async (req, res) => {
       task: task._id,
     });
 
-    res.status(200).json({ status: true, message: "Task assigned successfully." });
+    // Update user's tasks array
+    await User.updateMany(
+      { _id: { $in: teamObjectIds } },
+      { $push: { tasks: task._id } }
+    );
+
+    res
+      .status(200)
+      .json({ status: true, message: "Task assigned successfully." });
   } catch (error) {
     console.error("Error in createTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -72,7 +86,9 @@ export const duplicateTask = async (req, res) => {
       text += ` and ${task.team.length - 1} others.`;
     }
 
-    text += ` Task Priority is ${task.priority}, so work on it accordingly. Assigned on ${new Date(
+    text += ` Task Priority is ${
+      task.priority
+    }, so work on it accordingly. Assigned on ${new Date(
       task.date
     ).toDateString()}. Thank You`;
 
@@ -82,7 +98,9 @@ export const duplicateTask = async (req, res) => {
       task: newTask._id,
     });
 
-    res.status(200).json({ status: true, message: "Task duplicated successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "Task duplicated successfully." });
   } catch (error) {
     console.error("Error in duplicateTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -103,7 +121,9 @@ export const postTaskActivity = async (req, res) => {
     task.activities.push({ type, activity, by: userId });
     await task.save();
 
-    res.status(200).json({ status: true, message: "Activity posted successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "Activity posted successfully." });
   } catch (error) {
     console.error("Error in postTaskActivity:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -114,15 +134,24 @@ export const dashBoardStatistics = async (req, res) => {
   try {
     const { userId, isAdmin } = req.user;
 
-    const allTasks = await Task.find({
-      isTrashed: false,
-      ...(isAdmin ? {} : { team: { $all: [userId] } }),
-    })
-      .populate({
-        path: "team",
-        select: "name role title email",
-      })
-      .sort({ _id: -1 });
+    const allTasks = isAdmin
+      ? await Task.find({
+          isTrashed: false,
+        })
+          .populate({
+            path: "team",
+            select: "name role title email",
+          })
+          .sort({ _id: -1 })
+      : await Task.find({
+          isTrashed: false,
+          team: { $all: [userId] },
+        })
+          .populate({
+            path: "team",
+            select: "name role title email",
+          })
+          .sort({ _id: -1 });
 
     const users = await User.find({ isActive: true })
       .select("name title role isAdmin")
@@ -131,11 +160,42 @@ export const dashBoardStatistics = async (req, res) => {
 
     const groupTasks = allTasks.reduce((result, task) => {
       const stage = task.stage;
-      result[stage] = (result[stage] || 0) + 1;
+
+      if (!result[stage]) {
+        result[stage] = 1;
+      } else {
+        result[stage] += 1;
+      }
+
       return result;
     }, {});
 
-    res.status(200).json({ status: true, groupTasks, users });
+    const groupData = Object.entries(
+      allTasks.reduce((result, task) => {
+        const { priority } = task;
+
+        result[priority] = (result[priority] || 0) + 1;
+        return result;
+      }, {})
+    ).map(([name, total]) => ({ name, total }));
+
+    // calculate total tasks
+    const totalTasks = allTasks?.length;
+    const last10Task = allTasks?.slice(0, 10);
+
+    const summary = {
+      totalTasks,
+      last10Task,
+      users: isAdmin ? users : [],
+      tasks: groupTasks,
+      graphData: groupData,
+    };
+
+    res.status(200).json({
+      status: true,
+      message: "Successfully",
+      ...summary,
+    });
   } catch (error) {
     console.error("Error in dashboardStatistics:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -145,16 +205,26 @@ export const dashBoardStatistics = async (req, res) => {
 export const getTasks = async (req, res) => {
   try {
     const { stage, isTrashed } = req.query;
+    const { userId, isAdmin } = req.user;
 
-    const query = { isTrashed: isTrashed === "true" };
+    const query = isAdmin
+      ? { isTrashed: isTrashed === "true" }
+      : { isTrashed: isTrashed === "true", team: { $all: [userId] } };
     if (stage) query.stage = stage;
 
-    const tasks = await Task.find(query)
-      .populate({
-        path: "team",
-        select: "name title email",
-      })
-      .sort({ _id: -1 });
+    const tasks = isAdmin
+      ? await Task.find(query)
+          .populate({
+            path: "team",
+            select: "name title email",
+          })
+          .sort({ _id: -1 })
+      : await Task.find(query)
+          .populate({
+            path: "team",
+            select: "name title email",
+          })
+          .sort({ _id: -1 });
 
     res.status(200).json({ status: true, tasks });
   } catch (error) {
@@ -201,7 +271,9 @@ export const createSubTask = async (req, res) => {
     task.subTasks.push({ title, date, tag });
     await task.save();
 
-    res.status(200).json({ status: true, message: "SubTask added successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "SubTask added successfully." });
   } catch (error) {
     console.error("Error in createSubTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -229,7 +301,9 @@ export const updateTask = async (req, res) => {
 
     await task.save();
 
-    res.status(200).json({ status: true, message: "Task updated successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "Task updated successfully." });
   } catch (error) {
     console.error("Error in updateTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -248,7 +322,9 @@ export const trashTask = async (req, res) => {
     task.isTrashed = true;
     await task.save();
 
-    res.status(200).json({ status: true, message: "Task trashed successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "Task trashed successfully." });
   } catch (error) {
     console.error("Error in trashTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
@@ -271,10 +347,15 @@ export const deleteRestoreTask = async (req, res) => {
         await task.save();
       }
     } else if (actionType === "restoreAll") {
-      await Task.updateMany({ isTrashed: true }, { $set: { isTrashed: false } });
+      await Task.updateMany(
+        { isTrashed: true },
+        { $set: { isTrashed: false } }
+      );
     }
 
-    res.status(200).json({ status: true, message: "Operation performed successfully." });
+    res
+      .status(200)
+      .json({ status: true, message: "Operation performed successfully." });
   } catch (error) {
     console.error("Error in deleteRestoreTask:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
