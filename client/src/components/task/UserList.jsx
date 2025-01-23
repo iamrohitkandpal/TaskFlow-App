@@ -7,27 +7,28 @@ import {
 } from "@headlessui/react";
 import clsx from "clsx";
 import { Fragment, useEffect, useState } from "react";
-import { summary } from "../../assets/data";
 import { getInitials } from "../../utils";
 import { BsChevronExpand } from "react-icons/bs";
 import { MdCheck } from "react-icons/md";
+import { useGetTeamListQuery } from "../../redux/slices/api/userApiSlice";
 
 const UserList = ({ setTeam, team }) => {
-  const data = summary.users;
+  const {data, isLoading} = useGetTeamListQuery();
   const [selectedUsers, setSelectedUsers] = useState([]);
+  // console.log(data, team);
 
   const handleChange = (selected) => {
     setSelectedUsers(selected);
-    setTeam(selected);
+    setTeam(selected)?.map((user) => user?._id);
   };
 
   useEffect(() => {
     if(team?.length < 1) {
-        data && setSelectedUsers([data[0]]);
+        data && setSelectedUsers([data?.users[0]]);
     } else {
         setSelectedUsers(team);
     }
-  }, []);
+  }, [isLoading]);
 
   return (
     <div>
@@ -58,7 +59,7 @@ const UserList = ({ setTeam, team }) => {
             leaveTo="opacity-0"
           >
             <ListboxOptions className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
-              {data?.map((user, index) => (
+              {data?.users?.map((user, index) => (
                 <ListboxOption
                   key={index}
                   value={user}

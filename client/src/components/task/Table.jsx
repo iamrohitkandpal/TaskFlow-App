@@ -12,6 +12,9 @@ import clsx from "clsx";
 import { FaList } from "react-icons/fa";
 import UserInfo from "../UserInfo";
 import Button from "../Button";
+import ConfirmationDialog from "../Dialogs";
+import { useTrashTaskMutation } from "../../redux/slices/api/taskApiSlice";
+import AddTask from "./AddTask";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -22,13 +25,34 @@ const ICONS = {
 const Table = ({ tasks }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [openEdit, setOpenEdit] = useState(false);
+
+  const [trashTask] = useTrashTaskMutation();
 
   const deleteClicks = (id) => {
     setSelected(id);
     setOpenDialog(true);
   };
 
-  const deleteHandler = () => {};
+  const editClicks = (task) => {
+    setSelected(task);
+    setOpenEdit(true);
+  };
+
+  const deleteHandler = async () => {
+    try {
+      const res = await trashTask({ id: selected, isTrash: true }).unwrap();
+      toast.success(res?.message);
+
+      setTimeout(() => {
+        setOpenDialog(false);
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "An error occurred!");
+    }
+  };
 
   const TableHeader = () => (
     <thead className="w-full border-b border-gray-300">
@@ -60,9 +84,7 @@ const Table = ({ tasks }) => {
           <span className={clsx("text-lg", PRIOTITYSTYELS[task?.priority])}>
             {ICONS[task?.priority]}
           </span>
-          <span className="capitalize line-clamp-1">
-            {task?.priority}
-          </span>
+          <span className="capitalize line-clamp-1">{task?.priority}</span>
         </div>
       </td>
 
@@ -110,6 +132,7 @@ const Table = ({ tasks }) => {
           className="text-blue-600 hover:text-blue-500 sm:px-0 text-sm md:text-base"
           label="Edit"
           type="button"
+          onClick={() => editClicks(task)}
         />
 
         <Button
@@ -136,6 +159,20 @@ const Table = ({ tasks }) => {
           </table>
         </div>
       </div>
+
+      {/* TODO */}
+      <ConfirmationDialog
+        open={openDialog}
+        setOpen={setOpenDialog}
+        onClick={deleteHandler}
+      />
+
+      <AddTask
+        open={openEdit}
+        setOpen={setOpenEdit}
+        task={selected}
+        key={new Date().getTime()}
+      />
     </>
   );
 };

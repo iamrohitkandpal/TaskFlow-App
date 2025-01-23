@@ -9,6 +9,8 @@ import { Menu, Transition } from "@headlessui/react";
 import AddTask from "./AddTask";
 import ConfirmationDialog from "../Dialogs";
 import AddSubTask from './AddSubtask';
+import { useDuplicateTaskMutation, useTrashTaskMutation } from "../../redux/slices/api/taskApiSlice";
+import { toast } from "sonner";
 
 const TaskDialog = ({ task }) => {
   const [open, setOpen] = useState(false); // For AddSubTask modal
@@ -16,17 +18,46 @@ const TaskDialog = ({ task }) => {
   const [openDialog, setOpenDialog] = useState(false); // For ConfirmationDialog modal
 
   const navigate = useNavigate();
+  const [deleteTask] = useTrashTaskMutation();
+  const [duplicateTask] = useDuplicateTaskMutation();
 
   // Handlers
-  const duplicateHandler = () => {
-    console.log("Duplicate task functionality not implemented yet.");
+  const duplicateHandler = async () => {
+    try {
+      const res = await duplicateTask(task._id).unwrap();
+      toast.success(res?.message);
+
+      setTimeout(() => {
+        setOpenDialog(false);
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.data?.message || error?.error);
+    }
   };
 
   const deleteClicks = () => {
     setOpenDialog(true); // Open confirmation dialog before deletion
   };
 
-  const deleteHandler = () => {
+  const deleteHandler = async () => {
+    try {
+      const res = await deleteTask({
+        id: task._id,
+        isTrashed: "trash",
+      }).unwrap();
+
+      toast.success(res?.message);
+
+      setTimeout(() => {
+        setOpenDialog(false);
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error("Failed to delete task:", error.message);
+      toast.error(error?.data?.message || error?.error);
+    }
     console.log("Task deleted!");
     setOpenDialog(false); // Close confirmation dialog after deletion
   };
@@ -51,7 +82,7 @@ const TaskDialog = ({ task }) => {
     {
       label: "Duplicate",
       icon: <HiDuplicate className="mr-2 h-5 w-5" aria-hidden="true" />,
-      onClick: duplicateHandler,
+      onClick: () => duplicateHandler(),
     },
   ];
 
@@ -60,10 +91,10 @@ const TaskDialog = ({ task }) => {
       <div>
         {/* Menu Dropdown */}
         <Menu as="div" className="relative z-10 inline-block text-left">
-          <Menu.Button className="inline-flex w-full justify-center rounded-md px-4 py-2 text-sm font-medium text-gray-600">
+          <Menu.Button className="inline-flex w-full justify-center rounded-md pl-4 pr-1 py-2 text-sm font-medium text-gray-600">
             <BsThreeDots />
           </Menu.Button>
-
+ 
           <Transition
             as={Fragment}
             enter="transition ease-out duration-100"
@@ -118,7 +149,7 @@ const TaskDialog = ({ task }) => {
       </div>
 
       {/* Modals */}
-      <AddTask open={openEdit} setOpen={setOpenEdit} task={task} />
+      <AddTask open={openEdit} setOpen={setOpenEdit} task={task} key={new Date().getTime()} />
       <AddSubTask open={open} setOpen={setOpen} />
       <ConfirmationDialog
         open={openDialog}

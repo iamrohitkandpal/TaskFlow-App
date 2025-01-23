@@ -38,7 +38,7 @@ const ModalWrapper = ({ open, setOpen, children }) => {
               <Dialog.Panel className="w-full relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all pb-0 sm:my-8 sm:w-full sm:max-w-lg">
                 <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
-                    <div className="w-full mt-3  sm:ml-4 sm:mt-0 sm:text-left">
+                    <div className="w-full mt-3 sm:mt-0 sm:text-left">
                       {children}
                     </div>
                   </div>
