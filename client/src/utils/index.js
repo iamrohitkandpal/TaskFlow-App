@@ -39,12 +39,13 @@ export const PRIOTITYSTYELS = {
   high: "text-red-600",
   medium: "text-yellow-600",
   normal: "text-blue-600",
+  low: "text-green-600",
 };
 
 export const TASK_TYPE = {
-  todo: "bg-blue-600",
-  "in progress": "bg-yellow-600",
-  completed: "bg-green-600",
+  todo: "bg-blue-500",
+  "in progress": "bg-yellow-500",
+  completed: "bg-green-500",
 };
 
 export const BGS = [

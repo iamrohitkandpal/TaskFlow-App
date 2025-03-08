@@ -15,13 +15,15 @@ export default connectDB;
 
 export const createJWT = (res, userId) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
+    expiresIn: "7d",
   });
 
+  // Attach the token to cookies
   res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== "production",
-    sameSite: "strict", // Prevents CSRF attacks
-    maxAge: 1 * 24 * 60 * 60 * 1000,
+    httpOnly: true, // Prevents JavaScript access to cookies for security
+    secure: process.env.NODE_ENV === "production", // Ensures HTTPS in production
+    sameSite: "Strict", // Prevents CSRF attacks
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
+
