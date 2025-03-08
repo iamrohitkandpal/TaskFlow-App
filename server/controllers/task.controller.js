@@ -5,63 +5,63 @@ import mongoose from "mongoose";
 
 export const createTask = async (req, res) => {
   try {
+    const { title, description, priority, dueDate, team } = req.body;
     const { userId } = req.user;
-    const { title, team, stage, date, priority, assets } = req.body;
-    // console.log("req.body", req.body);
 
-    // Validate and convert `team` array elements to ObjectId
-    const teamObjectIds = Array.isArray(team)
-      ? team
-          .map((member) => member._id) // Extract `_id` field
-          .filter(mongoose.Types.ObjectId.isValid) // Validate ObjectId
-          .map((memberId) => new mongoose.Types.ObjectId(memberId)) // Convert to ObjectId
-      : [];
-
-    // console.log("teamObjectIds", teamObjectIds);
-
-    let text = "New task has been assigned to you";
-    if (teamObjectIds.length > 1) {
-      text += ` and ${teamObjectIds.length - 1} others.`;
+    // Validate required fields
+    if (!title || !priority || !dueDate) {
+      return res.status(400).json({
+        status: false,
+        message: "Title, priority, and due date are required.",
+      });
     }
 
-    text += ` Task Priority is ${priority}, so work on it accordingly. Assigned on ${new Date(
-      date
-    ).toDateString()}. Thank You`;
+    // Validate team members if provided
+    if (team && team.length > 0) {
+      const validTeamMembers = await User.find({
+        _id: { $in: team },
+        isActive: true
+      }).select("_id");
 
-    const activity = {
-      type: "assigned",
-      activity: text,
-      by: userId,
-    };
+      if (validTeamMembers.length !== team.length) {
+        return res.status(400).json({
+          status: false,
+          message: "One or more team members are invalid or inactive.",
+        });
+      }
+    }
 
+    // Create the task with validated data
     const task = await Task.create({
       title,
-      team: teamObjectIds,
-      stage: stage?.toLowerCase(),
-      date,
-      priority: priority?.toLowerCase(),
-      assets,
-      activities: activity,
+      description,
+      priority,
+      dueDate,
+      team: team || [],
+      createdBy: userId,
     });
 
-    await Notice.create({
-      team: teamObjectIds,
-      text,
-      task: task._id,
+    // Notify team members about the new task
+    if (team && team.length > 0) {
+      await Notice.create({
+        task: task._id,
+        team,
+        type: "NEW_TASK",
+        message: `New task '${title}' has been assigned to you.`,
+      });
+    }
+
+    res.status(201).json({
+      status: true,
+      message: "Task created successfully.",
+      task,
     });
-
-    // Update user's tasks array
-    await User.updateMany(
-      { _id: { $in: teamObjectIds } },
-      { $push: { tasks: task._id } }
-    );
-
-    res
-      .status(200)
-      .json({ status: true, message: "Task assigned successfully." });
   } catch (error) {
-    console.error("Error in createTask:", error.message);
-    return res.status(500).json({ status: false, message: "Server Error" });
+    console.error("Error in createTask controller:", error.stack);
+    res.status(500).json({
+      status: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
 
