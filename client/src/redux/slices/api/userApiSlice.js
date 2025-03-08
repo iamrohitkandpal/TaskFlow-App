@@ -36,6 +36,8 @@ export const userApiSlice = apiSlice.injectEndpoints({
         method: "GET",
         credentials: "include",
       }),
+      // Add cache invalidation on mutation
+      providesTags: ["TeamList"],
     }),
 
     getNotifications: builder.query({
