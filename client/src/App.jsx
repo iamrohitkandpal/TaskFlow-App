@@ -9,8 +9,8 @@ import { Toaster } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
-import { Fragment, useRef } from "react";
-import { setIsSidebarOpen } from "./redux/slices/authSlice";
+import { Fragment, useEffect, useRef } from "react";
+import { checkAuth, setIsSidebarOpen } from "./redux/slices/authSlice";
 import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
@@ -20,7 +20,7 @@ function Layout() {
   const location = useLocation();
 
   const {user} = useSelector((state) => state.auth);
-  console.log(user);
+  // console.log(user);
 
   return user ? (
     <div className="w-full h-screen flex flex-col md:flex-row">
@@ -86,8 +86,19 @@ const MobileSidebar = () => {
 };
 
 function App() {
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    // Only check authentication if there's user data in localStorage
+    const userInfo = localStorage.getItem("userInfo");
+    if (userInfo) {
+      checkAuth(dispatch);
+    }
+  }, [dispatch]);
+
   return (
-    <main className="w-full min-h-screen bg-[#f3f4f6] ">
+    <main className="w-full min-h-screen bg-[#f3f4f6]">
       <Routes>
         <Route element={<Layout />}>
           <Route index path="/" element={<Navigate to="/dashboard" />} />
