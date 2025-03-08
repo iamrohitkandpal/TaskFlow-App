@@ -8,6 +8,8 @@ import { getInitials } from "./../utils/index";
 import { toast } from "sonner";
 import { useLogoutMutation } from "../redux/slices/api/authApiSlice";
 import { logout } from "../redux/slices/authSlice";
+import AddUser from "./AddUser";
+import ChangePassword from './ChangePassword';
 
 const UserAvatar = () => {
   const [open, setOpen] = useState(false);
@@ -23,15 +25,24 @@ const UserAvatar = () => {
 
   const logoutHandler = async () => {
     try {
-      await logoutUser();
-      dispatch(logout());
-      navigate("/login");
-      toast.success("Logged out successfully");
+      const result = await logoutUser().unwrap();
+      
+      // Only logout if the server response is successful
+      if (result && result.status) {
+        dispatch(logout());
+        navigate("/login");
+        toast.success("Logged out successfully");
+      } else {
+        toast.error("Logout failed");
+      }
     } catch (error) {
       console.log("Failed to log out, Error: " + error);
       toast.error("Something went wrong");
+      
+      // Don't dispatch logout on error to prevent data inconsistencies
     }
   };
+  
   return (
     <>
       <div>
@@ -95,6 +106,9 @@ const UserAvatar = () => {
           </Transition>
         </Menu>
       </div>
+
+      <AddUser open={open} setOpen={setOpen} userData={user} />
+      <ChangePassword open={openPassword} setOpen={setOpenPassword} />
     </>
   );
 };

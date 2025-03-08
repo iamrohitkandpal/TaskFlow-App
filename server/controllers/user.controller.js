@@ -110,9 +110,12 @@ export const loginUser = async (req, res) => {
 // Controller: Logout User
 export const logoutUser = (req, res) => {
   try {
+    // Only clear the authentication token cookie
     res.cookie("token", "", {
       httpOnly: true,
       expires: new Date(0),
+      sameSite: "Strict",
+      secure: process.env.NODE_ENV === "production",
     });
 
     res.status(200).json({ status: true, message: "Logged out successfully." });
@@ -130,7 +133,8 @@ export const logoutUser = (req, res) => {
 // Controller: Get Team List
 export const getTeamList = async (req, res) => {
   try {
-    const users = await User.find().select("name email role title isActive");
+    // Only return active users for task assignment
+    const users = await User.find({ isActive: true }).select("name email role title isActive");
 
     res.status(200).json({
       status: true,

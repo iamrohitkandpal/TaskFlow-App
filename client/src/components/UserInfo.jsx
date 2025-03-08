@@ -5,8 +5,9 @@ import { Transition } from "@headlessui/react";
 import { Fragment } from "react";
 
 const UserInfo = ({ user }) => {
+  // console.log(user);
   return (
-    <div className="px-4">
+    <div className="px-4 relative">
       <Popover className="relative">
         {({ open }) => (
           <>
