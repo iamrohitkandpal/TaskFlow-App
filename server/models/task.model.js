@@ -17,7 +17,7 @@ const taskSchema = new mongoose.Schema(
     },
     stage: {
       type: String,
-      enum: ["todo", "in-progress", "completed"],
+      enum: ["todo", "in progress", "completed"],
       default: "todo",
     },
     activities: [

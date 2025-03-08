@@ -8,13 +8,13 @@ import { useLoginMutation } from "../redux/slices/api/authApiSlice";
 import { toast } from "sonner";
 import { setCredentials } from "../redux/slices/authSlice";
 import Loader from "../components/Loader";
+import { validateLoginCredentials } from "../utils/validation";
 
 const Login = () => {
-  const {user} = useSelector((state) => state.auth);
-
+  const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [login, {isLoading}] = useLoginMutation();
+  const [login, { isLoading }] = useLoginMutation();
 
   const {
     register,
@@ -22,21 +22,38 @@ const Login = () => {
     formState: { errors },
   } = useForm();
 
+  // Redirect if already logged in
   useEffect(() => {
-    user && navigate("/dashboard");
+    // Check both Redux state and localStorage
+    const userInfo = localStorage.getItem("userInfo");
+    if (user || userInfo) {
+      navigate("/dashboard");
+    }
   }, [user, navigate]);
 
   const submitHandler = async (data) => {
     try {
-      const result = await login(data);
-      console.log("Logged in successfully", result);
+      // Add validation
+      const validation = validateLoginCredentials(data);
+      if (!validation.isValid) {
+        Object.entries(validation.errors).forEach(([field, message]) => {
+          toast.error(message);
+        });
+        return;
+      }
 
-      dispatch(setCredentials(result));
-      toast.success("Logged in successfully");
-      navigate("/");
+      const result = await login(data).unwrap();
+      
+      if (result.status) {
+        dispatch(setCredentials({ data: result }));
+        toast.success("Logged in successfully");
+        navigate("/dashboard");
+      } else {
+        toast.error(result.message || "Login failed");
+      }
     } catch (error) {
       console.log("Error logging in", error);
-      toast.error(error?.data?.message || error?.message);
+      toast.error(error?.data?.message || error?.message || "Login failed");
     }
   };
 

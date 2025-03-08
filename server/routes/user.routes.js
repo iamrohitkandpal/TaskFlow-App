@@ -8,7 +8,8 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 
-router.get("/get-team", protectedRoute, isAdminRoute, getTeamList);
+// Change this route to be accessible to all authenticated users, not just admins
+router.get("/get-team", protectedRoute, getTeamList);
 router.get("/notifications", protectedRoute, getNotificationsList);
 
 router.put("/profile", protectedRoute, updateUserProfile);
@@ -20,6 +21,5 @@ router
   .route("/:id")
   .put(protectedRoute, isAdminRoute, activateUserProfile)
   .delete(protectedRoute, isAdminRoute, deleteUserProfile);
-
 
 export default router;
