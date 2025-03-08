@@ -6,18 +6,34 @@ const protectedRoute = async (req, res, next) => {
     let token = req.cookies?.token;
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      const result = await User.findById(decoded.userId).select(
-        "isAdmin email"
-      );
-      req.user = {
-        userId: decoded.userId,
-        isAdmin: result.isAdmin,
-        email: result.email,
-      };
+        // Fix: Use decoded.userId instead of decoded.id
+        const result = await User.findById(decoded.userId).select(
+          "isAdmin email"
+        );
 
-      next();
+        if (!result) {
+          return res
+            .status(401)
+            .json({ status: false, message: "User not found" });
+        }
+
+        req.user = {
+          userId: decoded.userId,
+          isAdmin: result.isAdmin,
+          email: result.email,
+        };
+
+        next();
+      } catch (error) {
+        console.log("Token verification error:", error.message);
+        return res
+          .status(401)
+          .json({ status: false, message: "Not Authorized, Invalid Token" });
+      }
     } else {
       return res
         .status(401)
