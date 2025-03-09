@@ -219,26 +219,45 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="h-full py-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+    <div className="py-4">
+      <Title title="Dashboard" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {stats.map(({ icon, bg, label, total }, index) => (
           <Card key={index} icon={icon} bg={bg} label={label} count={total} />
         ))}
       </div>
 
-      <div className="w-full bg-white my-16 p-4 rounded shadow-sm">
-        <h4 className="text-xl text-gray-600 font-semibold">
-          Priority Based Chart
-        </h4>
-        <Chart data={data?.graphData} />
+      {/* Improved Chart Section */}
+      <div className="mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="lg:flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Tasks Overview</h2>
+            <div className="mt-2 lg:mt-0">
+              <span className="text-sm text-gray-500">
+                Total Tasks: {data?.totalTasks || 0}
+              </span>
+            </div>
+          </div>
+          <div className="mt-4">
+            {data?.graphData && data.graphData.length > 0 ? (
+              <Chart data={data.graphData} />
+            ) : (
+              <div className="h-60 flex items-center justify-center text-gray-500">
+                No task data available
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
-        {/* left side */}
-        <TaskTable tasks={data?.last10Task} />
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
+          {/* left side */}
+          <TaskTable tasks={data?.last10Task} />
 
-        {/* right side */}
-        <UserTable users={data?.users} />
+          {/* right side */}
+          <UserTable users={data?.users} />
+        </div>
       </div>
     </div>
   );
