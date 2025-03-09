@@ -219,45 +219,33 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="py-4">
-      <Title title="Dashboard" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="h-full py-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         {stats.map(({ icon, bg, label, total }, index) => (
           <Card key={index} icon={icon} bg={bg} label={label} count={total} />
         ))}
       </div>
 
-      {/* Improved Chart Section */}
-      <div className="mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="lg:flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Tasks Overview</h2>
-            <div className="mt-2 lg:mt-0">
-              <span className="text-sm text-gray-500">
-                Total Tasks: {data?.totalTasks || 0}
-              </span>
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Task Analytics</h2>
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex flex-wrap items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-700">Distribution Overview</h3>
+              <p className="text-sm text-gray-500">Task breakdown by priority levels</p>
             </div>
+            {/* Optional: Add period selector here */}
           </div>
-          <div className="mt-4">
-            {data?.graphData && data.graphData.length > 0 ? (
-              <Chart data={data.graphData} />
-            ) : (
-              <div className="h-60 flex items-center justify-center text-gray-500">
-                No task data available
-              </div>
-            )}
-          </div>
+          <Chart data={stats?.graphData || []} />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
-          {/* left side */}
-          <TaskTable tasks={data?.last10Task} />
+      <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
+        {/* left side */}
+        <TaskTable tasks={data?.last10Task} />
 
-          {/* right side */}
-          <UserTable users={data?.users} />
-        </div>
+        {/* right side */}
+        <UserTable users={data?.users} />
       </div>
     </div>
   );
