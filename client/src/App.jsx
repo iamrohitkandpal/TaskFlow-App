@@ -15,6 +15,7 @@ import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
 import Settings from "./pages/Settings";
+import { initializeSocket, disconnectSocket } from "./services/socketService";
 
 function Layout() {
   const location = useLocation();
@@ -95,7 +96,17 @@ function App() {
     if (userInfo) {
       checkAuth(dispatch);
     }
-  }, [dispatch]);
+    
+    // Initialize socket connection if user is logged in
+    if (user?.userId) {
+      initializeSocket(user.userId);
+    }
+    
+    // Clean up socket connection on unmount
+    return () => {
+      disconnectSocket();
+    };
+  }, [dispatch, user?.userId]);
 
   return (
     <main className="w-full min-h-screen bg-[#f3f4f6]">
