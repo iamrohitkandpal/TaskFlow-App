@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Task from "../models/task.model.js";
 import Notice from "../models/notification.model.js";
 import mongoose from "mongoose";
+import { io } from "../index.js";
 
 export const createTask = async (req, res) => {
   try {
@@ -50,6 +51,13 @@ export const createTask = async (req, res) => {
         message: `New task '${title}' has been assigned to you.`,
       });
     }
+
+    // Emit socket event for real-time update
+    io.emit("taskUpdated", { 
+      action: "create", 
+      task: task,
+      userId: req.user.userId
+    });
 
     res.status(201).json({
       status: true,
@@ -301,6 +309,13 @@ export const updateTask = async (req, res) => {
 
     await task.save();
 
+    // Emit socket event
+    io.emit("taskUpdated", { 
+      action: "update", 
+      task: task,
+      userId: req.user.userId
+    });
+
     res
       .status(200)
       .json({ status: true, message: "Task updated successfully." });
@@ -352,6 +367,13 @@ export const deleteRestoreTask = async (req, res) => {
         { $set: { isTrashed: false } }
       );
     }
+
+    // Emit socket event
+    io.emit("taskUpdated", { 
+      action: "delete", 
+      taskId: id,
+      userId: req.user.userId
+    });
 
     res
       .status(200)
