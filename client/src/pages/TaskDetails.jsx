@@ -23,6 +23,8 @@ import {
   useGetSingleTaskQuery,
   usePostTaskActivityMutation,
 } from "../redux/slices/api/taskApiSlice";
+import TextSummarizer from '../components/task/TextSummarizer';
+import EffortEstimate from '../components/task/EffortEstimate';
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
@@ -126,16 +128,8 @@ const TaskDetails = () => {
                     <span className="text-lg">{ICONS[task?.priority]}</span>
                     <span className="uppercase">{task?.priority} Priority</span>
                   </div>
-
-                  <div className={clsx("flex items-center gap-2")}>
-                    <div
-                      className={clsx(
-                        "w-4 h-4 rounded-full",
-                        TASK_TYPE[task.stage]
-                      )}
-                    />
-                    <span className="text-black uppercase">{task?.stage}</span>
-                  </div>
+                  
+                  {task?._id && <EffortEstimate taskId={task._id} />}
                 </div>
 
                 <p className="text-gray-500">

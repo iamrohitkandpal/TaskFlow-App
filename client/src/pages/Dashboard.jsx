@@ -16,6 +16,8 @@ import { BGS, getInitials, PRIOTITYSTYELS, TASK_TYPE } from "../utils";
 import UserInfo from "../components/UserInfo";
 import { useGetDashboardStatsQuery } from "../redux/slices/api/taskApiSlice";
 import Loader from "./../components/Loader";
+import ActivityFeed from "../components/ActivityFeed";
+import PrioritizedTaskList from '../components/PrioritizedTaskList';
 
 const TaskTable = ({ tasks }) => {
   const ICONS = {
@@ -153,16 +155,24 @@ const UserTable = ({ users }) => {
   );
 };
 
-const Dashboard = () => {
-  const { data, isLoading, error } = useGetDashboardStatsQuery();
-  console.log(data);
+const ActivityItem = ({ user, action, task, time }) => (
+  <div className="flex items-center space-x-2">
+    <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm">
+      {user[0]}
+    </div>
+    <div>
+      <p className="text-sm">
+        <span className="font-medium">{user}</span> {action} <span className="font-medium">{task}</span>
+      </p>
+      <p className="text-xs text-gray-500">{time}</p>
+    </div>
+  </div>
+);
 
-  if (isLoading)
-    return (
-      <div className="py-10">
-        <Loader />
-      </div>
-    );
+const Dashboard = () => {
+  const { data, isLoading } = useGetDashboardStatsQuery();
+
+  if (isLoading) return <Loader />;
 
   const totals = data?.tasks;
 
@@ -219,33 +229,40 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="h-full py-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(({ icon, bg, label, total }, index) => (
           <Card key={index} icon={icon} bg={bg} label={label} count={total} />
         ))}
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Task Analytics</h2>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex flex-wrap items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-medium text-gray-700">Distribution Overview</h3>
-              <p className="text-sm text-gray-500">Task breakdown by priority levels</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <div className="bg-white p-4 rounded-md shadow-sm">
+            <h4 className="text-lg font-semibold mb-2">Task Status</h4>
+            <div className="h-[300px]">
+              <Chart data={data?.stats} />
             </div>
-            {/* Optional: Add period selector here */}
           </div>
-          <Chart data={stats?.graphData || []} />
+          
+          <div className="mt-4">
+            <PrioritizedTaskList limit={5} />
+          </div>
+          
+          <div className="mt-4 bg-white p-4 rounded-md shadow-sm">
+            <h4 className="text-lg font-semibold mb-4">Recent Tasks</h4>
+            <div className="overflow-auto">
+              <table className="min-w-full">
+                <TaskHeader />
+                <TaskTable tasks={data?.recentTasks?.slice(0, 5) || []} />
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="w-full flex flex-col lg:flex-row gap-4 2xl:gap-10 py-8">
-        {/* left side */}
-        <TaskTable tasks={data?.last10Task} />
-
-        {/* right side */}
-        <UserTable users={data?.users} />
+        
+        <div className="lg:col-span-1">
+          <ActivityFeed limit={10} />
+        </div>
       </div>
     </div>
   );
