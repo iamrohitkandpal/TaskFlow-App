@@ -1,5 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { PieChart, Pie, Sector, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import {
+  PieChart, Pie, Sector, Cell, ResponsiveContainer, Legend, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  LineChart, Line, AreaChart, Area
+} from "recharts";
 
 // Enhanced color palette for better visual appeal
 const COLORS = [
@@ -87,9 +91,8 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const Chart = ({ data = [] }) => {
+const StatusPieChart = ({ data }) => {
   const [activeIndex, setActiveIndex] = useState(0);
-
   const onPieEnter = useCallback(
     (_, index) => {
       setActiveIndex(index);
@@ -97,56 +100,121 @@ const Chart = ({ data = [] }) => {
     [setActiveIndex]
   );
 
-  // Handle case with no data
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-        <p className="text-gray-500">No task data available</p>
-      </div>
-    );
-  }
-  
-  // Calculate total for percentage
-  const total = data.reduce((sum, entry) => sum + entry.total, 0);
-
   return (
-    <div className="w-full h-80 bg-white p-4 rounded-lg shadow-sm">
-      <h3 className="text-lg font-medium text-gray-700 mb-3">Task Distribution by Priority</h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            activeIndex={activeIndex}
-            activeShape={renderActiveShape}
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            dataKey="total"
-            onMouseEnter={onPieEnter}
-          >
-            {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={COLORS[index % COLORS.length]} 
-                stroke="#fff"
-                strokeWidth={1}
-              />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            layout="horizontal" 
-            verticalAlign="bottom" 
-            align="center"
-            formatter={(value) => (
-              <span className="text-sm font-medium text-gray-700">{value}</span>
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          activeIndex={activeIndex}
+          activeShape={renderActiveShape}
+          data={data}
+          cx="50%"
+          cy="50%"
+          innerRadius={60}
+          outerRadius={80}
+          fill="#8884d8"
+          dataKey="value"
+          onMouseEnter={onPieEnter}
+        >
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
   );
+};
+
+const TaskTrendChart = ({ data }) => {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        data={data}
+        margin={{
+          top: 5,
+          right: 30,
+          left: 20,
+          bottom: 5,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line type="monotone" dataKey="completed" stroke="#00C49F" activeDot={{ r: 8 }} />
+        <Line type="monotone" dataKey="created" stroke="#0088FE" />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+
+const WorkloadDistribution = ({ data }) => {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        margin={{
+          top: 5,
+          right: 30,
+          left: 20,
+          bottom: 5,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="assigned" fill="#8884D8" />
+        <Bar dataKey="completed" fill="#82CA9D" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const BurndownChart = ({ data }) => {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart
+        data={data}
+        margin={{
+          top: 10,
+          right: 30,
+          left: 0,
+          bottom: 0,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Area type="monotone" dataKey="remaining" stackId="1" stroke="#8884d8" fill="#8884d8" />
+        <Area type="monotone" dataKey="completed" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+};
+
+const Chart = ({ data, type = "pie", height = "100%" }) => {
+  if (!data || data.length === 0) {
+    return <div className="flex items-center justify-center h-full">No data available</div>;
+  }
+
+  switch (type) {
+    case "pie":
+      return <StatusPieChart data={data} />;
+    case "trend":
+      return <TaskTrendChart data={data} />;
+    case "workload":
+      return <WorkloadDistribution data={data} />;
+    case "burndown":
+      return <BurndownChart data={data} />;
+    default:
+      return <StatusPieChart data={data} />;
+  }
 };
 
 export default Chart;
