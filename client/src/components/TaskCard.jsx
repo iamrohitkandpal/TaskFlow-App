@@ -12,6 +12,7 @@ import { BiMessageDetail } from "react-icons/bi";
 import UserInfo from "./UserInfo";
 import { IoMdAdd } from "react-icons/io";
 import AddSubTask from "./task/AddSubtask";
+import TextSummarizer from './task/TextSummarizer';
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -53,6 +54,10 @@ function TaskCard({ task }) {
             {formatDate(new Date(task?.date))}
           </span>
         </>
+
+        {task.description && (
+          <TextSummarizer text={task.description} maxLength={80} />
+        )}
 
         <div className="w-full border-t border-gray-200 my-2" />
         <div className="flex items-center justify-between mb-2">
