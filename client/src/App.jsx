@@ -122,6 +122,8 @@ function App() {
           <Route path="/trashed" element={<Trash />} />
           <Route path="/task/:id" element={<TaskDetails />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/integrations" element={<PrivateRoute><IntegrationsSettings /></PrivateRoute>} />
+          <Route path="/settings/integrations/:provider/callback" element={<PrivateRoute><OAuthCallback /></PrivateRoute>} />
         </Route>
 
         <Route path="/login" element={<Login />} />
