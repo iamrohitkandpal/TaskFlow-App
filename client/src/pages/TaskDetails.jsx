@@ -25,6 +25,7 @@ import {
 } from "../redux/slices/api/taskApiSlice";
 import TextSummarizer from '../components/task/TextSummarizer';
 import EffortEstimate from '../components/task/EffortEstimate';
+import CalendarSync from '../components/calendar/CalendarSync';
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
@@ -135,6 +136,20 @@ const TaskDetails = () => {
                 <p className="text-gray-500">
                   Created At: {new Date(task?.date).toDateString()}
                 </p>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-gray-600">Due Date</span>
+                  <div className="flex items-center gap-2">
+                    <span>{format(new Date(task.dueDate), 'PPP')}</span>
+                    {task._id && (
+                      <CalendarSync 
+                        taskId={task._id} 
+                        dueDate={task.dueDate}
+                        calendarSync={task.calendarSync}
+                      />
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex items-center gap-8 p-4 border-y border-gray-200">
                   <div className="space-x-2">

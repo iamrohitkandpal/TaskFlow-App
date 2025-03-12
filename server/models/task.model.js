@@ -49,6 +49,68 @@ const taskSchema = new mongoose.Schema(
     assets: [String],
     team: [{ type: Schema.Types.ObjectId, ref: "User" }],
     isTrashed: { type: Boolean, default: false },
+    gitReferences: [
+      {
+        type: {
+          type: String,
+          enum: ["commit", "pr", "issue"],
+          required: true,
+        },
+        provider: {
+          type: String,
+          enum: ["github", "gitlab"],
+          required: true,
+        },
+        repository: String,
+        reference: String, // commit hash, PR number, etc.
+        title: String,
+        url: String,
+        status: String,
+      },
+    ],
+    taskIdentifier: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    calendarEventId: String,
+    calendarSync: {
+      synced: {
+        type: Boolean,
+        default: false,
+      },
+      provider: {
+        type: String,
+        enum: ["caldav", "nextcloud", "ical"],
+      },
+      calendarId: String,
+      lastSynced: Date,
+    },
+    notifications: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      webhook: String,
+      events: {
+        taskCreated: {
+          type: Boolean,
+          default: true,
+        },
+        taskUpdated: {
+          type: Boolean,
+          default: true,
+        },
+        taskCompleted: {
+          type: Boolean,
+          default: true,
+        },
+        commentAdded: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    },
   },
   { timestamps: true }
 );

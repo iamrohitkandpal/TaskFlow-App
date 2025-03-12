@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, "User name is required"],
+      trim: true,
     },
     title: {
       type: String,
@@ -13,12 +14,15 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
+      enum: ["Admin", "Manager", "Developer", "Viewer"],
+      default: "Viewer",
       required: [true, "Role is required"],
     },
     email: {
       type: String,
       required: [true, "Email is required"],
       unique: true,
+      trim: true,
     },
     password: {
       type: String,
@@ -40,6 +44,54 @@ const userSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
+    calendar: {
+      type: {
+        type: String,
+        enum: ["caldav", "nextcloud", "ical"],
+      },
+      url: String,
+      username: String,
+      password: String, // In production, this should be encrypted
+      calendars: [
+        {
+          id: String,
+          name: String,
+        },
+      ],
+      active: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    notifications: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      webhook: String,
+      events: {
+        taskAssigned: {
+          type: Boolean,
+          default: true,
+        },
+        taskCompleted: {
+          type: Boolean,
+          default: true,
+        },
+        mentionedInComment: {
+          type: Boolean,
+          default: true,
+        },
+        deadlineApproaching: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    },
+    skills: {
+      type: [String],
+      default: []
+    }
   },
   { timestamps: true }
 );
