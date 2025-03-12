@@ -5,6 +5,9 @@ import activityRoutes from "./activity.routes.js";
 import analyticsRoutes from './analytics.routes.js';
 import taskPrioritizationRoutes from './task-prioritization.routes.js';
 import aiRoutes from './ai.routes.js';
+import integrationRoutes from './integration.routes.js';
+import calendarRoutes from './calendar.routes.js';
+import notificationRoutes from './notification.routes.js';
 
 const router = express.Router();
 
@@ -14,5 +17,8 @@ router.use("/activities", activityRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/task-prioritization', taskPrioritizationRoutes);
 router.use('/ai', aiRoutes);
+router.use('/integrations', integrationRoutes);
+router.use('/calendar', calendarRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;
