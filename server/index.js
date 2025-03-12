@@ -9,6 +9,7 @@ import routes from "./routes/index.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { handleTaskUpdate } from "./services/socket.service.js";
+import './cron/workflow.jobs.js';
 
 dotenv.config();
 
