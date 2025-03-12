@@ -60,3 +60,29 @@ const isAdminRoute = async (req, res, next) => {
 };
 
 export { protectedRoute, isAdminRoute };
+
+import jwt from 'express-jwt';
+import User from '../models/user.model.js';
+
+export const checkRole = (roles) => {
+  return async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user.userId);
+      
+      if (!user || !roles.includes(user.role)) {
+        return res.status(403).json({
+          status: false,
+          message: 'Access denied'
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Error in checkRole middleware:', error);
+      res.status(500).json({
+        status: false,
+        message: 'Server error'
+      });
+    }
+  };
+};
