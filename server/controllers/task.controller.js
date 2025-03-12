@@ -3,72 +3,27 @@ import Task from "../models/task.model.js";
 import Notice from "../models/notification.model.js";
 import mongoose from "mongoose";
 import { io } from "../index.js";
+import { assignTaskBasedOnSkills } from '../services/assignment.service.js';
 
 export const createTask = async (req, res) => {
   try {
-    const { title, description, priority, dueDate, team } = req.body;
-    const { userId } = req.user;
-
-    // Validate required fields
-    if (!title || !priority || !dueDate) {
-      return res.status(400).json({
-        status: false,
-        message: "Title, priority, and due date are required.",
-      });
-    }
-
-    // Validate team members if provided
-    if (team && team.length > 0) {
-      const validTeamMembers = await User.find({
-        _id: { $in: team },
-        isActive: true
-      }).select("_id");
-
-      if (validTeamMembers.length !== team.length) {
-        return res.status(400).json({
-          status: false,
-          message: "One or more team members are invalid or inactive.",
-        });
-      }
-    }
-
-    // Create the task with validated data
-    const task = await Task.create({
-      title,
-      description,
-      priority,
-      dueDate,
-      team: team || [],
-      createdBy: userId,
-    });
-
-    // Notify team members about the new task
-    if (team && team.length > 0) {
-      await Notice.create({
-        task: task._id,
-        team,
-        type: "NEW_TASK",
-        message: `New task '${title}' has been assigned to you.`,
-      });
-    }
-
-    // Emit socket event for real-time update
-    io.emit("taskUpdated", { 
-      action: "create", 
-      task: task,
-      userId: req.user.userId
-    });
-
+    const taskData = req.body;
+    const newTask = new Task(taskData);
+    await newTask.save();
+    
+    // Assign the task based on skills
+    await assignTaskBasedOnSkills(newTask._id);
+    
     res.status(201).json({
       status: true,
-      message: "Task created successfully.",
-      task,
+      message: 'Task created and assigned successfully',
+      task: newTask
     });
   } catch (error) {
-    console.error("Error in createTask controller:", error.stack);
+    console.error('Error in createTask:', error);
     res.status(500).json({
       status: false,
-      message: "Server error. Please try again later.",
+      message: 'Server error while creating task'
     });
   }
 };
@@ -380,6 +335,34 @@ export const deleteRestoreTask = async (req, res) => {
       .json({ status: true, message: "Operation performed successfully." });
   } catch (error) {
     console.error("Error in deleteRestoreTask:", error.message);
+    return res.status(500).json({ status: false, message: "Server Error" });
+  }
+};
+
+// Add this function to your task controller
+
+export const checkUserWipLimit = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { maxTasksInProgress = 3 } = req.query;
+    
+    // Count tasks currently in progress for the user
+    const tasksInProgressCount = await Task.countDocuments({
+      assignee: userId,
+      stage: 'in-progress',
+      isTrashed: false
+    });
+    
+    const isLimitExceeded = tasksInProgressCount >= Number(maxTasksInProgress);
+    
+    res.status(200).json({
+      status: true,
+      isLimitExceeded,
+      currentCount: tasksInProgressCount,
+      limit: Number(maxTasksInProgress)
+    });
+  } catch (error) {
+    console.error("Error in checkUserWipLimit:", error.message);
     return res.status(500).json({ status: false, message: "Server Error" });
   }
 };

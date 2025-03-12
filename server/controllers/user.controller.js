@@ -338,3 +338,45 @@ export const deleteUserProfile = async (req, res) => {
       });
   }
 };
+
+export const updateUserSkills = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { skills } = req.body;
+    
+    // If userId is 'profile', use the current user's ID
+    const userIdToUpdate = userId === 'profile' ? req.user.userId : userId;
+    
+    // Check permissions - only allow users to update their own skills or admins to update anyone's
+    if (userIdToUpdate !== req.user.userId && !req.user.isAdmin) {
+      return res.status(403).json({
+        status: false,
+        message: 'You do not have permission to update this user\'s skills'
+      });
+    }
+    
+    const user = await User.findById(userIdToUpdate);
+    
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'User not found'
+      });
+    }
+    
+    user.skills = Array.isArray(skills) ? skills : [];
+    await user.save();
+    
+    res.status(200).json({
+      status: true,
+      message: 'Skills updated successfully',
+      skills: user.skills
+    });
+  } catch (error) {
+    console.error('Error in updateUserSkills:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error'
+    });
+  }
+};

@@ -16,6 +16,8 @@ router.put("/profile", protectedRoute, updateUserProfile);
 router.put("/read-noti", protectedRoute, markNotificationRead);
 router.put("/change-password", protectedRoute, changeUserPassword);
 
+router.put('/:userId/skills', protectedRoute, updateUserSkills);
+
 // ADMIN ROUTES
 router
   .route("/:id")

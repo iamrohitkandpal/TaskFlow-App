@@ -12,6 +12,7 @@ import {
   updateTask,
 } from "../controllers/task.controller.js";
 import { isAdminRoute, protectedRoute } from "../middlewares/auth.middleware.js";
+import { checkWipLimit } from '../controllers/user-settings.controller.js';
 
 const router = express.Router();
 
@@ -33,5 +34,10 @@ router.delete(
   isAdminRoute,
   deleteRestoreTask
 );
+
+router.post('/', protectedRoute, checkWipLimit, createTask);
+
+// Add this route to your task routes
+router.get('/wip-limit/:userId', auth, checkUserWipLimit);
 
 export default router;
