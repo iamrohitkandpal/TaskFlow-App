@@ -115,6 +115,13 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Add text index for natural language search
+taskSchema.index({ 
+  title: 'text', 
+  description: 'text', 
+  comments: 'text' 
+});
+
 const Task = mongoose.model("Task", taskSchema);
 
 export default Task;
