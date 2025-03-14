@@ -8,6 +8,8 @@ import aiRoutes from './ai.routes.js';
 import integrationRoutes from './integration.routes.js';
 import calendarRoutes from './calendar.routes.js';
 import notificationRoutes from './notification.routes.js';
+import pushNotificationRoutes from './push-notification.routes.js';
+import searchRoutes from './search.routes.js';
 
 const router = express.Router();
 
@@ -20,5 +22,7 @@ router.use('/ai', aiRoutes);
 router.use('/integrations', integrationRoutes);
 router.use('/calendar', calendarRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/push-notifications', pushNotificationRoutes);
+router.use('/search', searchRoutes);
 
 export default router;
