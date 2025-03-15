@@ -1,18 +1,16 @@
 import express from 'express';
-import {
-  searchTasksController,
-  saveSearchFilterController,
-  getUserSearchFiltersController,
-  deleteSearchFilterController
+import { 
+  searchTasks, 
+  saveSearchFilter, 
+  getSavedFilters, 
+  deleteSavedFilter 
 } from '../controllers/search.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-// Search routes with authentication
-router.get('/tasks', authenticateToken, searchTasksController);
-router.post('/filters', authenticateToken, saveSearchFilterController);
-router.get('/filters', authenticateToken, getUserSearchFiltersController);
-router.delete('/filters/:filterId', authenticateToken, deleteSearchFilterController);
+router.get('/tasks', searchTasks);
+router.post('/filters', saveSearchFilter);
+router.get('/filters', getSavedFilters);
+router.delete('/filters/:filterId', deleteSavedFilter);
 
 export default router;

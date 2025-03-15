@@ -19,6 +19,7 @@
     "cloudinary": "^2.5.1",
     "clsx": "^2.1.1",
     "firebase": "^11.1.0",
+    "frappe-gantt": "^1.0.3",
     "ical-generator": "^8.1.1",
     "ical-parser": "^1.2.0",
     "js-cookie": "^3.0.5",
