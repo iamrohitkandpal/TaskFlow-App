@@ -1,0 +1,51 @@
+.gantt .bar-wrapper {
+  cursor: pointer;
+}
+
+.gantt .bar {
+  fill: #4299e1;
+}
+
+.gantt .bar-progress {
+  fill: #2b6cb0;
+}
+
+.gantt .bar.critical-path {
+  fill: #f56565;
+}
+
+.gantt .bar.critical-path .bar-progress {
+  fill: #c53030;
+}
+
+.gantt .bar.completed-task {
+  fill: #48bb78;
+}
+
+.gantt .bar.completed-task .bar-progress {
+  fill: #2f855a;
+}
+
+.gantt .bar.high-priority-task {
+  fill: #ed8936;
+}
+
+.gantt .bar.high-priority-task .bar-progress {
+  fill: #c05621;
+}
+
+.gantt .bar-label {
+  fill: #2d3748;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+
+.gantt .arrow {
+  stroke: #718096;
+}
+
+.gantt-container {
+  position: relative;
+  overflow: auto;
+  font-size: 12px;
+}
