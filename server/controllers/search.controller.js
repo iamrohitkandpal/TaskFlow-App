@@ -1,9 +1,8 @@
 import {
-  searchTasks,
-  saveSearchFilter,
-  getUserSearchFilters,
-  deleteSearchFilter
+  searchTasks
 } from '../services/search.service.js';
+import SavedFilter from '../models/saved-filter.model.js';
+import Task from '../models/task.model.js';
 
 // Controller for full-text search
 export const searchTasksController = async (req, res) => {
@@ -49,28 +48,55 @@ export const searchTasksController = async (req, res) => {
   }
 };
 
-// Controller to save a search filter
-export const saveSearchFilterController = async (req, res) => {
+// Save a search filter
+export const saveSearchFilter = async (req, res) => {
   try {
     const { userId } = req.user;
-    const filterData = req.body;
+    const { name, query, filters } = req.body;
     
-    if (!filterData.name || !filterData.query) {
-      return res.status(400).json({
-        status: false,
-        message: 'Filter name and query are required'
+    if (!name) {
+      return res.status(400).json({ 
+        status: false, 
+        message: 'Filter name is required' 
       });
     }
     
-    const savedFilters = await saveSearchFilter(userId, filterData);
-    
-    res.status(200).json({
-      status: true,
-      message: 'Search filter saved successfully',
-      filters: savedFilters
+    // Check if a filter with the same name already exists
+    const existingFilter = await SavedFilter.findOne({ 
+      userId, 
+      name 
     });
+    
+    if (existingFilter) {
+      // Update existing filter
+      existingFilter.query = query;
+      existingFilter.filters = filters;
+      await existingFilter.save();
+      
+      return res.status(200).json({
+        status: true,
+        message: 'Filter updated successfully',
+        filter: existingFilter
+      });
+    } else {
+      // Create new filter
+      const newFilter = new SavedFilter({
+        name,
+        userId,
+        query,
+        filters
+      });
+      
+      await newFilter.save();
+      
+      res.status(201).json({
+        status: true,
+        message: 'Filter saved successfully',
+        filter: newFilter
+      });
+    }
   } catch (error) {
-    console.error('Error in saveSearchFilterController:', error);
+    console.error('Error saving search filter:', error);
     res.status(500).json({
       status: false,
       message: 'Server error while saving search filter'
@@ -78,50 +104,56 @@ export const saveSearchFilterController = async (req, res) => {
   }
 };
 
-// Controller to get user's saved search filters
-export const getUserSearchFiltersController = async (req, res) => {
+// Get all saved filters for a user
+export const getSavedFilters = async (req, res) => {
   try {
     const { userId } = req.user;
-    const filters = await getUserSearchFilters(userId);
+    
+    const filters = await SavedFilter.find({ userId })
+      .sort({ updatedAt: -1 });
     
     res.status(200).json({
       status: true,
       filters
     });
   } catch (error) {
-    console.error('Error in getUserSearchFiltersController:', error);
+    console.error('Error getting saved filters:', error);
     res.status(500).json({
       status: false,
-      message: 'Server error while retrieving search filters'
+      message: 'Server error while getting saved filters'
     });
   }
 };
 
-// Controller to delete a saved search filter
-export const deleteSearchFilterController = async (req, res) => {
+// Delete a saved filter
+export const deleteSavedFilter = async (req, res) => {
   try {
     const { userId } = req.user;
     const { filterId } = req.params;
     
-    if (!filterId) {
-      return res.status(400).json({
+    const filter = await SavedFilter.findOne({
+      _id: filterId,
+      userId
+    });
+    
+    if (!filter) {
+      return res.status(404).json({
         status: false,
-        message: 'Filter ID is required'
+        message: 'Filter not found'
       });
     }
     
-    const updatedFilters = await deleteSearchFilter(userId, filterId);
+    await filter.remove();
     
     res.status(200).json({
       status: true,
-      message: 'Search filter deleted successfully',
-      filters: updatedFilters
+      message: 'Filter deleted successfully'
     });
   } catch (error) {
-    console.error('Error in deleteSearchFilterController:', error);
+    console.error('Error deleting saved filter:', error);
     res.status(500).json({
       status: false,
-      message: 'Server error while deleting search filter'
+      message: 'Server error while deleting saved filter'
     });
   }
 };

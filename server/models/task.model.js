@@ -111,6 +111,10 @@ const taskSchema = new mongoose.Schema(
         },
       },
     },
+    dependencies: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Task'
+    }],
   },
   { timestamps: true }
 );
