@@ -2,13 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4a90e2" />
+    <meta name="description" content="TaskFlow - A powerful task management application for teams" />
     <title>TaskFlow</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register service worker for PWA
+      if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('Service Worker registered'))
+            .catch(err => console.error('Service Worker registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>
