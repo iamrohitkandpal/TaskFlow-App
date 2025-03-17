@@ -81,4 +81,61 @@ export const disconnectSocket = () => {
   }
 };
 
+// Join a collaborative editing session
+export const joinCollaborativeSession = (taskId, userId) => {
+  if (!socket) return;
+  
+  socket.emit('join-collaborative-session', {
+    taskId,
+    userId
+  });
+};
+
+// Leave a collaborative editing session
+export const leaveCollaborativeSession = (taskId, userId) => {
+  if (!socket) return;
+  
+  socket.emit('leave-collaborative-session', {
+    taskId,
+    userId
+  });
+};
+
+// Send a content update to collaborators
+export const sendContentUpdate = (taskId, content, userId) => {
+  if (!socket) return;
+  
+  socket.emit('content-update', {
+    taskId,
+    content,
+    userId
+  });
+};
+
+// Listen for content updates from other collaborators
+export const onContentUpdate = (callback) => {
+  if (!socket) return;
+  
+  socket.on('content-update', (data) => {
+    callback(data);
+  });
+};
+
+// Listen for collaborator changes (joining/leaving)
+export const onCollaboratorUpdate = (callback) => {
+  if (!socket) return;
+  
+  socket.on('collaborator-update', (data) => {
+    callback(data);
+  });
+};
+
+// Clean up listeners
+export const removeCollaborationListeners = () => {
+  if (!socket) return;
+  
+  socket.off('content-update');
+  socket.off('collaborator-update');
+};
+
 export default socket;
