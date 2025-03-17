@@ -26,6 +26,7 @@ import {
 import TextSummarizer from '../components/task/TextSummarizer';
 import EffortEstimate from '../components/task/EffortEstimate';
 import CalendarSync from '../components/calendar/CalendarSync';
+import CollaborativeEditor from '../components/editors/CollaborativeEditor';
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
@@ -221,6 +222,15 @@ const TaskDetails = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Description</h3>
+                  <CollaborativeEditor
+                    taskId={id}
+                    initialContent={task?.description}
+                    readOnly={!user?.isAdmin && task?.team?.indexOf(user?.userId) === -1}
+                  />
                 </div>
               </div>
               {/* RIGHT */}
