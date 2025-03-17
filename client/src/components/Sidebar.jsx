@@ -5,6 +5,7 @@ import {
   MdOutlinePendingActions,
   MdSettings,
   MdTaskAlt,
+  MdBarChart,
 } from "react-icons/md";
 import { FaTasks, FaTrashAlt, FaUsers } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
@@ -48,6 +49,11 @@ const linkData = [
     label: "Trash",
     link: "trashed",
     icon: <FaTrashAlt />,
+  },
+  {
+    label: "Reports",
+    link: "reports",
+    icon: <MdBarChart />,
   },
 ];
 

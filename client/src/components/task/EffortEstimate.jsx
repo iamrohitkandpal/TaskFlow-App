@@ -1,42 +1,126 @@
-import React from 'react';
-import { useEstimateTaskEffortQuery } from '../../redux/slices/api/aiApiSlice';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import axios from 'axios';
+import { API_BASE_URL } from '../../config/constants';
+import { AiOutlineFieldTime } from 'react-icons/ai';
+import { MdRefresh } from 'react-icons/md';
+import { Tooltip } from '@mui/material';
+import effortEstimationService from '../../services/effortEstimationService';
 
 const EffortEstimate = ({ taskId }) => {
-  const { data, error, isLoading } = useEstimateTaskEffortQuery(taskId, {
-    // Skip query if taskId is not provided
-    skip: !taskId
-  });
+  const [estimatedEffort, setEstimatedEffort] = useState(null);
+  const [actualEffort, setActualEffort] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [task, setTask] = useState(null);
+  const { token } = useSelector(state => state.auth);
   
-  if (isLoading) {
-    return <span className="text-xs text-gray-500">Calculating estimate...</span>;
-  }
+  useEffect(() => {
+    fetchTask();
+  }, [taskId]);
   
-  if (error) {
-    return <span className="text-xs text-red-500">Estimation failed</span>;
-  }
+  const fetchTask = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.status) {
+        const taskData = response.data.task;
+        setTask(taskData);
+        setActualEffort(taskData.actualEffort);
+        
+        // If there's no actual effort, generate an estimate
+        if (!taskData.actualEffort) {
+          // Fetch past tasks to train the model
+          const tasksResponse = await axios.get(`${API_BASE_URL}/tasks`, {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { includeCompleted: true, limit: 100 }
+          });
+          
+          if (tasksResponse.data.status) {
+            const pastTasks = tasksResponse.data.tasks;
+            
+            // Train model with historical data
+            effortEstimationService.trainModel(pastTasks);
+            
+            // Get prediction for current task
+            const estimate = effortEstimationService.predictEffort(taskData);
+            setEstimatedEffort(estimate);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching task data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  if (!data || !data.effortDays) {
-    return null;
-  }
+  const updateActualEffort = async (value) => {
+    try {
+      const response = await axios.patch(
+        `${API_BASE_URL}/tasks/${taskId}/effort`,
+        { actualEffort: value },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data.status) {
+        setActualEffort(value);
+      }
+    } catch (error) {
+      console.error('Error updating actual effort:', error);
+    }
+  };
   
-  // Determine effort level for display
-  let effortLabel = 'Medium';
-  let effortColor = 'text-yellow-600';
+  const regenerateEstimate = () => {
+    if (!task) return;
+    const estimate = effortEstimationService.predictEffort(task);
+    setEstimatedEffort(estimate);
+  };
   
-  if (data.effortDays <= 2) {
-    effortLabel = 'Quick';
-    effortColor = 'text-green-600';
-  } else if (data.effortDays > 5) {
-    effortLabel = 'Substantial';
-    effortColor = 'text-red-600';
-  }
+  if (!task) return null;
   
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-xs text-gray-600">Estimated effort:</span>
-      <span className={`text-xs font-medium ${effortColor}`}>
-        {effortLabel} ({data.effortDays} day{data.effortDays !== 1 ? 's' : ''})
-      </span>
+    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+      <AiOutlineFieldTime className="text-gray-600 text-xl" />
+      
+      <div className="flex flex-col">
+        {actualEffort ? (
+          <>
+            <span className="text-sm text-gray-600">Actual effort:</span>
+            <span className="font-medium">{actualEffort} hours</span>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-gray-600">Estimated effort:</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{loading ? '...' : `${estimatedEffort || '?'} hours`}</span>
+              <Tooltip title="Regenerate estimate">
+                <button 
+                  onClick={regenerateEstimate}
+                  className="text-blue-500 hover:text-blue-700"
+                >
+                  <MdRefresh />
+                </button>
+              </Tooltip>
+            </div>
+          </>
+        )}
+      </div>
+      
+      {!actualEffort && task.stage === 'completed' && (
+        <div className="ml-auto">
+          <input
+            type="number"
+            placeholder="Actual hours"
+            min="0.5"
+            step="0.5"
+            className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+            onChange={(e) => updateActualEffort(parseFloat(e.target.value))}
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -16,6 +16,7 @@ import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
 import Settings from "./pages/Settings";
 import { initializeSocket, disconnectSocket } from "./services/socketService";
+import Reports from './pages/Reports';
 
 function Layout() {
   const location = useLocation();
@@ -124,6 +125,8 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/settings/integrations" element={<PrivateRoute><IntegrationsSettings /></PrivateRoute>} />
           <Route path="/settings/integrations/:provider/callback" element={<PrivateRoute><OAuthCallback /></PrivateRoute>} />
+          <Route path="/projects/:projectId/timeline" element={<ProjectTimeline />} />
+          <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
         </Route>
 
         <Route path="/login" element={<Login />} />

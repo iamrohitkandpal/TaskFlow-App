@@ -16,6 +16,7 @@ import { cloudinaryURL } from "../../utils/cloudinary";
 import { dateFormatter } from "../../utils";
 import { useGetTeamListQuery } from "../../redux/slices/api/userApiSlice";
 import { useEstimateEffortForNewTaskMutation } from '../../redux/slices/api/aiApiSlice';
+import RichTextEditor from '../editors/RichTextEditor';
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORITY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
@@ -48,6 +49,7 @@ const AddTask = ({ open, setOpen, task }) => {
   const [uploading, setUploading] = useState(false);
   const [estimatedEffort, setEstimatedEffort] = useState(null);
   const [estimateEffort] = useEstimateEffortForNewTaskMutation();
+  const [description, setDescription] = useState(task?.description || '');
 
   const [createTask, { isLoading }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
@@ -67,6 +69,7 @@ const AddTask = ({ open, setOpen, task }) => {
 
       const newData = {
         ...data,
+        description, // Use the state value from the rich text editor
         assets: uploadedFileURLs,
         team,
         stage,
@@ -259,6 +262,17 @@ const AddTask = ({ open, setOpen, task }) => {
                 <span>Add Assets</span>
               </label>
             </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <RichTextEditor
+              content={description}
+              onChange={setDescription}
+              placeholder="Enter task description..."
+            />
           </div>
 
           <div className="bg-gray-50 py-6 sm:flex sm:flex-row-reverse gap-4">
