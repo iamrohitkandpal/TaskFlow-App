@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "keywords": [],
@@ -22,11 +23,19 @@
     "express-jwt": "^8.5.1",
     "idb": "^8.0.2",
     "jsonwebtoken": "^9.0.2",
+    "ml-regression-multivariate-linear": "^2.0.4",
+    "ml-regression-simple-linear": "^3.0.1",
     "mongoose": "^8.9.4",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.0",
     "nodemon": "^3.1.9",
+    "simple-statistics": "^7.8.8",
     "socket.io-client": "^4.8.1",
     "web-push": "^3.6.7"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
