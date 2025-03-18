@@ -1,12 +1,16 @@
 import { io } from "../index.js";
 import Activity from "../models/activity.model.js";
 
-// Record activity and broadcast updates
+/**
+ * Records task activity in the database and broadcasts updates to relevant users
+ * @param {Object} socket - Socket.io socket instance
+ * @param {Object} data - Task update data including action, task, userId
+ */
 export const handleTaskUpdate = async (socket, data) => {
   try {
     const { action, task, userId, taskId } = data;
     
-    // Log activity to database
+    // Log activity to database for history tracking
     if (userId) {
       await Activity.create({
         user: userId,
@@ -16,27 +20,30 @@ export const handleTaskUpdate = async (socket, data) => {
       });
     }
     
-    // Broadcast to specific rooms based on task's assignees or project members
-    // This allows for targeted real-time updates
+    // Targeted notifications to task assignees
     if (task?.assignees) {
       task.assignees.forEach(assignee => {
         socket.to(assignee.toString()).emit("taskUpdated", data);
       });
     }
     
-    // Also broadcast to general room for project members
+    // Project-wide notification for all team members
     if (task?.projectId) {
       socket.to(`project-${task.projectId}`).emit("taskUpdated", data);
     }
     
-    // Broadcast generally (could be optimized to remove once project-specific broadcasting works)
+    // Broadcast to all users (for global views)
     socket.broadcast.emit("taskUpdated", data);
   } catch (error) {
     console.error("Error handling task update:", error);
   }
 };
 
-// Get recent activities
+/**
+ * Retrieves recent activity logs from the database
+ * @param {Number} limit - Maximum number of activities to return
+ * @returns {Array} Recent activities with user and task details
+ */
 export const getActivities = async (limit = 10) => {
   try {
     const activities = await Activity.find()

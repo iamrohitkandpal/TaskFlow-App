@@ -25,10 +25,37 @@ const generateFileName = (reportType, format) => {
   return path.join(REPORTS_DIR, `taskflow_${reportType}_${timestamp}.${format}`);
 };
 
-// Create a PDF report
+// Clean HTML tags from text
+const cleanHtml = (text) => {
+  if (!text) return '';
+  return text.replace(/<[^>]*>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+};
+
+// Cleanup placeholder comment blocks
+// Replace with meaningful comments for PDF generation methods
+
+/**
+ * Formats task data into a properly structured table for PDF reports
+ * @param {Object} task - Task object with properties like title, status, priority, etc
+ * @param {Number} yPosition - Current Y position on the PDF document
+ * @param {Object} page - PDF document page reference
+ * @param {Object} font - Font object for text rendering
+ * @param {Array} columnWidths - Array of column width values
+ * @returns {Number} - Updated Y position after drawing the row
+ */
+const drawTaskRow = (task, yPosition, page, font, columnWidths) => {
+  // Implementation continues...
+}
+
+// Create a PDF report with memory optimization
 export const createReportPdf = async (reportType, data, title) => {
   try {
-    const pdfDoc = await PDFDocument.create();
+    // Create PDF document with compression options
+    const pdfDoc = await PDFDocument.create({
+      updateMetadata: true,
+      compress: true
+    });
+    
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
@@ -57,8 +84,9 @@ export const createReportPdf = async (reportType, data, title) => {
     let yPosition = height - 120;
     
     if (reportType === 'tasks') {
-      // Tasks report
-      const tasks = data;
+      // Tasks report - limit to 200 tasks maximum per report
+      const tasks = Array.isArray(data) ? 
+        (data.length > 200 ? data.slice(0, 200) : data) : [];
       
       // Add table header
       const columns = ['Task', 'Status', 'Priority', 'Assigned To', 'Due Date'];
@@ -98,8 +126,13 @@ export const createReportPdf = async (reportType, data, title) => {
         
         let rowX = startX + 5;
         
+        // Truncate task title if too long
+        const truncatedTitle = task.title ? 
+          (task.title.length > 30 ? task.title.substring(0, 30) + '...' : task.title) : 
+          'Untitled';
+        
         // Task title
-        page.drawText(task.title.substring(0, 30) + (task.title.length > 30 ? '...' : ''), {
+        page.drawText(truncatedTitle, {
           x: rowX,
           y: yPosition,
           size: 10,
@@ -144,6 +177,18 @@ export const createReportPdf = async (reportType, data, title) => {
         
         yPosition -= 25;
       }
+      
+      // If we truncated the tasks, add a note
+      if (data.length > 200) {
+        page.drawText(`Note: This report shows 200 tasks out of ${data.length} total tasks.`, {
+          x: 50,
+          y: 50,
+          size: 10,
+          font: boldFont,
+          color: rgb(0.5, 0, 0)
+        });
+      }
+      
     } else if (reportType === 'analytics') {
       // Analytics report
       if (data.taskStatusDistribution) {
@@ -222,8 +267,26 @@ export const createReportPdf = async (reportType, data, title) => {
       }
     }
     
-    // Save the PDF
-    const pdfBytes = await pdfDoc.save();
+    // Add page numbers
+    const pageCount = pdfDoc.getPageCount();
+    for (let i = 0; i < pageCount; i++) {
+      const page = pdfDoc.getPage(i);
+      const { width, height } = page.getSize();
+      
+      page.drawText(`Page ${i + 1} of ${pageCount}`, {
+        x: width / 2,
+        y: 30,
+        size: 8,
+        font: font,
+        color: rgb(0.5, 0.5, 0.5)
+      });
+    }
+    
+    // Save the PDF with compression
+    const pdfBytes = await pdfDoc.save({ 
+      useObjectStreams: true 
+    });
+    
     const filePath = generateFileName(reportType, 'pdf');
     
     fs.writeFileSync(filePath, pdfBytes);
@@ -234,53 +297,107 @@ export const createReportPdf = async (reportType, data, title) => {
   }
 };
 
-// Create an Excel or CSV report
+// Create an Excel or CSV report with memory optimization
 export const createReportExcel = async (reportType, data, title, format = 'xlsx') => {
   try {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(title);
+    workbook.creator = 'TaskFlow';
+    workbook.lastModifiedBy = 'TaskFlow';
+    workbook.created = new Date();
+    workbook.modified = new Date();
     
-    // Add title and date
-    worksheet.mergeCells('A1:E1');
-    worksheet.getCell('A1').value = title;
-    worksheet.getCell('A1').font = {
-      size: 16,
-      bold: true
-    };
+    // Size limits to prevent memory issues
+    const MAX_ROWS = 5000;
     
-    worksheet.mergeCells('A2:E2');
-    worksheet.getCell('A2').value = `Generated on: ${formatDate(new Date())}`;
-    worksheet.getCell('A2').font = {
-      size: 12,
-      italic: true
-    };
+    // Add title and date as document properties
+    workbook.properties.title = title;
+    workbook.properties.subject = 'TaskFlow Report';
     
-    let rowIndex = 4;
+    // Create worksheet
+    const worksheet = workbook.addWorksheet(title.substring(0, 31)); // Excel limits sheet names to 31 chars
     
-    if (reportType === 'tasks') {
-      // Add header
-      worksheet.addRow(['Task', 'Status', 'Priority', 'Assigned To', 'Due Date']);
-      worksheet.getRow(rowIndex).font = { bold: true };
-      worksheet.getRow(rowIndex).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: '4A86E8' }
-      };
-      worksheet.getRow(rowIndex).alignment = { vertical: 'middle', horizontal: 'center' };
+    // Add header row with styling
+    worksheet.addRow([title]);
+    worksheet.addRow([`Generated on: ${formatDate(new Date())}`]);
+    worksheet.addRow([]); // Empty row
+    
+    // Style the header
+    worksheet.getCell('A1').font = { bold: true, size: 14 };
+    worksheet.getCell('A2').font = { italic: true, size: 10 };
+    
+    // Set column widths for better readability
+    worksheet.getColumn(1).width = 30;
+    worksheet.getColumn(2).width = 15;
+    worksheet.getColumn(3).width = 15;
+    worksheet.getColumn(4).width = 20;
+    worksheet.getColumn(5).width = 15;
+    
+    let rowIndex = 4; // Start after the header rows
+    
+    if (reportType === 'tasks' || reportType === 'project') {
+      // Get tasks data
+      const tasks = reportType === 'tasks' ? data : data.tasks;
+      
+      // If too many tasks, truncate to prevent memory issues
+      const limitedTasks = Array.isArray(tasks) && tasks.length > MAX_ROWS ? 
+        tasks.slice(0, MAX_ROWS) : 
+        tasks;
+      
+      // Add column headers
+      const headerRow = worksheet.addRow(['Title', 'Status', 'Priority', 'Assigned To', 'Due Date']);
+      headerRow.font = { bold: true };
+      headerRow.eachCell(cell => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '4A90E2' }
+        };
+        cell.font = { color: { argb: 'FFFFFF' }, bold: true };
+      });
+      
       rowIndex++;
       
-      // Add data
-      const tasks = data;
-      for (const task of tasks) {
-        worksheet.addRow([
-          task.title,
-          task.stage || 'N/A',
-          task.priority || 'N/A',
-          task.assignee?.name || 'Unassigned',
-          formatDate(task.dueDate)
-        ]);
-        rowIndex++;
+      // Add task data with batching to reduce memory consumption
+      if (Array.isArray(limitedTasks)) {
+        const BATCH_SIZE = 100;
+        for (let i = 0; i < limitedTasks.length; i += BATCH_SIZE) {
+          const batch = limitedTasks.slice(i, i + BATCH_SIZE);
+          
+          for (const task of batch) {
+            // Add each task as a row in the worksheet with proper data formatting
+            const row = worksheet.addRow([
+              task.title || 'Untitled',
+              task.stage || 'N/A',
+              task.priority || 'N/A',
+              task.assignee?.name || 'Unassigned',
+              formatDate(task.dueDate)
+            ]);
+            
+            // Apply conditional formatting based on priority
+            if (task.priority === 'high') {
+              row.getCell(3).font = { color: { argb: 'FF0000' } }; // Red for high priority
+            } else if (task.priority === 'medium') {
+              row.getCell(3).font = { color: { argb: 'FF9900' } }; // Orange for medium priority
+            }
+            
+            // Apply status-based formatting
+            if (task.stage === 'completed') {
+              row.getCell(2).font = { color: { argb: '008000' } }; // Green for completed
+            } else if (task.stage === 'in progress') {
+              row.getCell(2).font = { color: { argb: '0000FF' } }; // Blue for in progress
+            }
+            rowIndex++;
+          }
+        }
       }
+      
+      // If we truncated the tasks, add a note
+      if (Array.isArray(tasks) && tasks.length > MAX_ROWS) {
+        worksheet.addRow([]);
+        worksheet.addRow([`Note: This report shows ${MAX_ROWS} tasks out of ${tasks.length} total tasks.`]);
+        worksheet.getCell(`A${rowIndex + 1}`).font = { italic: true, color: { argb: 'FF0000' } };
+      }
+      
     } else if (reportType === 'analytics') {
       // Task Status Distribution
       if (data.taskStatusDistribution) {

@@ -3,7 +3,13 @@ import { WebhookClient } from 'webhook-discord';
 import User from '../models/user.model.js';
 import Project from '../models/project.model.js';
 
-// Send notification to Discord webhook
+/**
+ * Sends a notification to a Discord webhook
+ * @param {string} webhookUrl - Discord webhook URL
+ * @param {string} message - Message to send
+ * @param {Array} embeds - Optional Discord embeds for rich messages
+ * @returns {Object} Result with success status
+ */
 export const sendDiscordNotification = async (webhookUrl, message, embeds = []) => {
   try {
     if (!webhookUrl) {
@@ -20,7 +26,13 @@ export const sendDiscordNotification = async (webhookUrl, message, embeds = []) 
   }
 };
 
-// Send notification to Mattermost webhook
+/**
+ * Sends a notification to a Mattermost webhook
+ * @param {string} webhookUrl - Mattermost webhook URL
+ * @param {string} message - Message text
+ * @param {Object} props - Optional additional properties
+ * @returns {Object} Result with success status
+ */
 export const sendMattermostNotification = async (webhookUrl, message, props = {}) => {
   try {
     if (!webhookUrl) {

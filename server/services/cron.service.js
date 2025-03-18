@@ -1,5 +1,8 @@
 import cron from 'node-cron';
 import { processScheduledReports } from '../controllers/report.controller.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Set up cron jobs for scheduled tasks
 export const startCronJobs = () => {
@@ -24,10 +27,6 @@ export const startCronJobs = () => {
 
 // Clean up old temporary files (reports older than 24 hours)
 const cleanupTemporaryFiles = () => {
-  const fs = require('fs');
-  const path = require('path');
-  const { fileURLToPath } = require('url');
-  
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const REPORTS_DIR = path.join(__dirname, '../tmp/reports');
   
@@ -41,13 +40,13 @@ const cleanupTemporaryFiles = () => {
     const filePath = path.join(REPORTS_DIR, file);
     const stats = fs.statSync(filePath);
     
-    // If file is older than 24 hours, delete it
-    if (now - stats.mtimeMs > ONE_DAY_MS) {
+    // Remove files older than 24 hours
+    if (now - stats.mtime.getTime() > ONE_DAY_MS) {
       try {
         fs.unlinkSync(filePath);
-        console.log(`Cleaned up old report file: ${file}`);
+        console.log(`Removed old file: ${file}`);
       } catch (err) {
-        console.error(`Failed to delete file ${file}:`, err);
+        console.error(`Failed to remove file ${file}:`, err);
       }
     }
   });
