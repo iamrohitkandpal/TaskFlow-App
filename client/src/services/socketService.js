@@ -1,25 +1,28 @@
 import { io } from "socket.io-client";
 import store from "../redux/store";
 import { addTask, updateTask, deleteTask } from "../redux/slices/taskSlice";
-import { addActivity } from "../redux/slices/activitySlice"; // You'll need to create this slice
+import { addActivity } from "../redux/slices/activitySlice";
 
-// Create socket instance
+// Create socket instance with credentials support
 const socket = io(import.meta.env.VITE_BASE_URL, {
   withCredentials: true,
   autoConnect: false,
 });
 
-// Initialize socket connection
+/**
+ * Initializes the Socket.io connection and sets up event listeners
+ * @param {string} userId - Current user ID for room subscription
+ */
 export const initializeSocket = (userId) => {
   if (!socket.connected) {
     socket.connect();
     
-    // Join user-specific room
+    // Join user-specific room for targeted notifications
     if (userId) {
       socket.emit("join", userId);
     }
 
-    // Listen for task updates
+    // Listen for real-time task updates from other users
     socket.on("taskUpdated", (data) => {
       console.log("Received task update:", data);
       
@@ -59,7 +62,10 @@ export const initializeSocket = (userId) => {
   }
 };
 
-// Join a project room to receive project-specific updates
+/**
+ * Joins a project-specific room to receive project updates
+ * @param {string} projectId - Project ID to subscribe to
+ */
 export const joinProjectRoom = (projectId) => {
   if (socket.connected && projectId) {
     socket.emit("joinProject", projectId);

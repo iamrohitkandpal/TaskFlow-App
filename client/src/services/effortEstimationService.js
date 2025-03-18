@@ -1,84 +1,106 @@
+import * as BrainJS from 'brain.js';
 import * as ss from 'simple-statistics';
-import { SimpleLinearRegression } from 'ml-regression-simple-linear';
-import { MultivariateLinearRegression } from 'ml-regression-multivariate-linear';
 
+/**
+ * Service for estimating task effort based on historical data
+ * Uses a fallback approach with multiple ML models for robust predictions
+ */
 class EffortEstimationService {
   constructor() {
-    this.linearModel = null;
-    this.multiModel = null;
+    this.brainModel = null;
     this.fallbackModel = null;
     this.featureScaler = null;
     this.targetScaler = null;
   }
   
-  // Train models based on historical task data
-  trainModel(tasks) {
+  /**
+   * Trains a model to predict task effort based on historical data
+   * Falls back to simpler methods when insufficient data exists
+   * @param {Array} tasks - Array of completed tasks with actual effort values
+   * @returns {Boolean} Whether training was successful
+   */
+  async trainModel(tasks) {
     try {
       // Filter out tasks without effort data
       const validTasks = tasks.filter(task => 
         task.actualEffort && task.title && task.description);
       
-      if (validTasks.length < 5) {
+      if (validTasks.length < 10) {
         console.log('Not enough data to train model, using fallback');
         this.trainFallbackModel(validTasks);
         return false;
       }
       
-      // Extract features and target
-      const features = this.extractFeatures(validTasks);
-      const targets = validTasks.map(task => task.actualEffort);
-      
-      // Try multivariate regression if we have enough data
-      if (validTasks.length >= 10) {
-        try {
-          this.trainMultivariateModel(features, targets);
-          console.log('Multivariate regression model trained successfully');
-          return true;
-        } catch (multiError) {
-          console.warn('Failed to train multivariate model, trying simple regression:', multiError);
-        }
-      }
-      
-      // Fallback to simple linear regression with just one feature
       try {
-        // Use title length as the single predictor
-        const simpleFeatures = validTasks.map(task => task.title.length);
-        this.trainSimpleModel(simpleFeatures, targets);
-        console.log('Simple linear regression model trained successfully');
+        this.trainBrainJSModel(validTasks);
+        console.log('BrainJS model trained successfully');
         return true;
-      } catch (simpleError) {
-        console.warn('Failed to train simple regression model, using fallback:', simpleError);
+      } catch (brainError) {
+        console.warn('Failed to train BrainJS model, using fallback:', brainError);
         this.trainFallbackModel(validTasks);
         return false;
       }
     } catch (error) {
       console.error('Error training effort estimation model:', error);
-      this.trainFallbackModel(tasks.filter(t => t.actualEffort));
       return false;
     }
   }
   
-  // Train a multivariate linear regression model
-  trainMultivariateModel(features, targets) {
-    // Normalize data
-    this.featureScaler = this.createScaler(features);
-    this.targetScaler = this.createScaler([targets]);
+  /**
+   * Trains a BrainJS neural network model for task effort prediction
+   * @param {Array} tasks - Array of tasks with effort data
+   */
+  trainBrainJSModel(tasks) {
+    // Create a neural network with appropriate architecture
+    const net = new BrainJS.NeuralNetwork({
+      hiddenLayers: [10, 5],
+      activation: 'sigmoid'
+    });
     
-    const scaledFeatures = this.featureScaler.transform(features);
-    const scaledTargets = this.targetScaler.transform([targets])[0];
+    // Prepare training data with normalized input values
+    const trainingData = tasks.map(task => {
+      // Normalize input values to improve learning efficiency
+      const titleLength = task.title.length / 100; // Scale title length
+      const descriptionLength = Math.min(task.description?.length || 0, 1000) / 1000;
+      const priority = task.priority === 'high' ? 1 : task.priority === 'medium' ? 0.5 : 0;
+      const hasDeadline = task.dueDate ? 1 : 0;
+      
+      // Normalize output values based on maximum effort in dataset
+      const maxEffort = Math.max(...tasks.map(t => t.actualEffort));
+      const normalizedEffort = task.actualEffort / maxEffort;
+      
+      return {
+        input: {
+          titleLength,
+          descriptionLength,
+          priority,
+          hasDeadline
+        },
+        output: {
+          effort: normalizedEffort
+        }
+      };
+    });
     
-    // Create and train multivariate model
-    this.multiModel = new MultivariateLinearRegression(scaledFeatures, scaledTargets);
+    // Train the network with appropriate parameters
+    net.train(trainingData, {
+      iterations: 1000,
+      errorThresh: 0.005,
+      log: false
+    });
+    
+    this.brainModel = {
+      network: net,
+      maxEffort: Math.max(...tasks.map(t => t.actualEffort))
+    };
   }
   
-  // Train a simple linear regression model
-  trainSimpleModel(features, targets) {
-    this.linearModel = new SimpleLinearRegression(features, targets);
-  }
-  
-  // Train a simple statistical model as ultimate fallback
+  /**
+   * Creates a simple statistical model as fallback when ML models fail
+   * @param {Array} tasks - Array of tasks with effort data
+   */
   trainFallbackModel(tasks) {
-    // If we have very limited data, just use the mean/median
+    // Use simple statistics for fallback predictions
     const efforts = tasks.map(task => task.actualEffort);
     
     this.fallbackModel = {
@@ -92,78 +114,35 @@ class EffortEstimationService {
     };
   }
   
-  // Extract features from tasks
-  extractFeatures(tasks) {
-    return tasks.map(task => {
-      const features = [
-        task.title.length, // Title length
-        task.description ? task.description.length : 0, // Description length
-        task.priority === 'high' ? 2 : task.priority === 'medium' ? 1 : 0, // Priority
-        task.dueDate ? 1 : 0, // Has deadline
-      ];
-      
-      return features;
-    });
-  }
-  
-  // Create a min-max scaler
-  createScaler(data) {
-    // Transpose the data to get columns
-    const columns = data[0].map((_, colIndex) => 
-      data.map(row => row[colIndex])
-    );
-    
-    // Find min and max for each column
-    const mins = columns.map(col => Math.min(...col));
-    const maxs = columns.map(col => Math.max(...col));
-    
-    return {
-      transform: (data) => {
-        return data.map(row => 
-          row.map((val, i) => 
-            (val - mins[i]) / (maxs[i] - mins[i] || 1)
-          )
-        );
-      },
-      inverseTransform: (data) => {
-        return data.map(row =>
-          row.map((val, i) =>
-            val * (maxs[i] - mins[i] || 1) + mins[i]
-          )
-        );
-      }
-    };
-  }
-  
-  // Predict effort for a new task
-  predictEffort(task) {
+  /**
+   * Predicts effort for a new task based on its attributes
+   * @param {Object} task - Task object with title, description, priority, etc.
+   * @returns {Number} Estimated effort in hours
+   */
+  async predictEffort(task) {
     try {
-      // Try multivariate model first
-      if (this.multiModel) {
+      // Try BrainJS model first
+      if (this.brainModel) {
         try {
-          const features = this.extractFeatures([task]);
-          const scaledFeatures = this.featureScaler.transform(features);
+          const titleLength = task.title.length / 100;
+          const descriptionLength = Math.min(task.description?.length || 0, 1000) / 1000;
+          const priority = task.priority === 'high' ? 1 : task.priority === 'medium' ? 0.5 : 0;
+          const hasDeadline = task.dueDate ? 1 : 0;
           
-          const scaledPrediction = this.multiModel.predict(scaledFeatures[0]);
-          const [transformedPrediction] = this.targetScaler.inverseTransform([[scaledPrediction]]);
+          const result = this.brainModel.network.run({
+            titleLength,
+            descriptionLength,
+            priority,
+            hasDeadline
+          });
           
-          return Math.round(transformedPrediction[0] * 2) / 2; // Round to nearest 0.5
-        } catch (multiError) {
-          console.warn('Multivariate prediction failed, trying simple regression', multiError);
+          return Math.round(result.effort * this.brainModel.maxEffort * 2) / 2; // Round to nearest 0.5
+        } catch (brainError) {
+          console.warn('BrainJS prediction failed, using fallback', brainError);
         }
       }
       
-      // Try simple linear regression if multivariate fails
-      if (this.linearModel) {
-        try {
-          const prediction = this.linearModel.predict(task.title.length);
-          return Math.max(1, Math.round(prediction * 2) / 2); // Ensure minimum of 1 hour
-        } catch (linearError) {
-          console.warn('Simple regression prediction failed, using fallback', linearError);
-        }
-      }
-      
-      // Use fallback model
+      // Use fallback model with priority-based estimation
       if (this.fallbackModel) {
         if (task.priority && this.fallbackModel.byPriority[task.priority]) {
           return this.fallbackModel.byPriority[task.priority];
@@ -171,10 +150,7 @@ class EffortEstimationService {
         return this.fallbackModel.median || this.fallbackModel.mean || 8;
       }
       
-      // Ultimate fallback - use rules of thumb
-      if (task.priority === 'high') return 10;
-      if (task.priority === 'medium') return 8;
-      return 6; // Default/low priority
+      return 8; // Default to 8 hours if all methods fail
     } catch (error) {
       console.error('Error predicting effort:', error);
       return 8; // Default to 8 hours on error
@@ -182,6 +158,6 @@ class EffortEstimationService {
   }
 }
 
-// Singleton instance
+// Singleton instance for application-wide use
 const effortEstimationService = new EffortEstimationService();
 export default effortEstimationService;

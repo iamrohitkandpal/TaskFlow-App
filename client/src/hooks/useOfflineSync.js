@@ -3,11 +3,16 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
 import * as OfflineStorage from '../services/offlineStorage';
 
+/**
+ * Custom hook for handling offline data synchronization
+ * Manages queued operations and syncs them when connection is restored
+ */
 export const useOfflineSync = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
+  // Set up online/offline event listeners
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -21,13 +26,20 @@ export const useOfflineSync = () => {
     };
   }, []);
 
-  // Function to add an operation to the sync queue
+  /**
+   * Adds an operation to the sync queue for later processing
+   * @param {Object} operation - Operation data with type and payload
+   */
   const addToSyncQueue = useCallback(async (operation) => {
     await OfflineStorage.addToSyncQueue(operation);
   }, []);
 
-  // Process the sync queue when back online
+  /**
+   * Processes the sync queue when internet connection is restored
+   * Synchronizes pending operations with the server
+   */
   const syncWithServer = useCallback(async () => {
+    // Don't attempt to sync if offline
     if (!isOnline) return;
 
     setIsSyncing(true);
@@ -44,6 +56,7 @@ export const useOfflineSync = () => {
       
       const successIds = [];
       
+      // Process each queued operation
       for (const item of queue) {
         try {
           const { operation } = item;
@@ -72,7 +85,7 @@ export const useOfflineSync = () => {
         }
       }
       
-      // Remove successfully processed operations from queue
+      // Clean up successfully processed operations
       await OfflineStorage.clearSyncQueue(successIds);
       
       setSyncMessage(`Synchronized ${successIds.length} operations with server`);

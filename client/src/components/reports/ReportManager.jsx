@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/constants';
@@ -20,10 +20,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
-  Radio,
-  RadioGroup,
   Checkbox,
-  Divider,
   CircularProgress,
   Alert
 } from '@mui/material';
@@ -31,8 +28,7 @@ import {
   PictureAsPdf as PdfIcon,
   TableChart as ExcelIcon,
   Description as CsvIcon,
-  Schedule as ScheduleIcon,
-  Download as DownloadIcon
+  Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -44,6 +40,8 @@ import {
   generateProjectReportPdf, 
   generateAnalyticsReportPdf 
 } from '../../services/reportService';
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const ReportManager = () => {
   const [reportType, setReportType] = useState('tasks');
@@ -58,25 +56,120 @@ const ReportManager = () => {
   const [openScheduleDialog, setOpenScheduleDialog] = useState(false);
   const [scheduledReports, setScheduledReports] = useState([]);
   
-  // Schedule form state
+  // Schedule form state with default values
   const [scheduleForm, setScheduleForm] = useState({
     reportType: 'tasks',
     format: 'pdf',
     frequency: 'weekly',
     dayOfWeek: 1, // Monday
+    dayOfMonth: 1,
     projectId: '',
     emailRecipients: '',
     includeProjectDetails: true,
     includeAnalytics: false
   });
   
-  const { token, user } = useSelector(state => state.auth);
+  const { token } = useSelector(state => state.auth);
   
+  // Fetch data with error handling
+  const fetchData = useCallback(async (url, options = {}, setLoadingState = null, errorMessage = 'Failed to fetch data') => {
+    if (setLoadingState) setLoadingState(true);
+    try {
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        ...options
+      });
+      
+      if (response.data.status) {
+        return response.data;
+      }
+      throw new Error(response.data.message || errorMessage);
+    } catch (error) {
+      console.error(`Error: ${errorMessage}:`, error);
+      toast.error(errorMessage);
+      return null;
+    } finally {
+      if (setLoadingState) setLoadingState(false);
+    }
+  }, [token]);
+  
+  // Optimized data fetching functions
+  const fetchProjects = useCallback(async () => {
+    const data = await fetchData(
+      `${API_BASE_URL}/projects`, 
+      {}, 
+      setLoadingProjects,
+      'Failed to load projects'
+    );
+    
+    if (data?.projects?.length) {
+      setProjects(data.projects);
+      setProjectId(data.projects[0]._id);
+    }
+  }, [fetchData]);
+  
+  /**
+   * Fetches all tasks from the API with appropriate filters
+   */
+  const fetchAllTasks = useCallback(async () => {
+    const data = await fetchData(
+      `${API_BASE_URL}/tasks`,
+      { params: { limit: 200, includeDetails: true } },
+      setLoadingTasks,
+      'Failed to load tasks'
+    );
+    
+    if (data?.tasks) {
+      setTasks(data.tasks);
+    }
+  }, [fetchData]);
+  
+  const fetchProjectTasks = useCallback(async (pid) => {
+    const data = await fetchData(
+      `${API_BASE_URL}/projects/${pid}/tasks`,
+      {},
+      setLoadingTasks,
+      'Failed to load project tasks'
+    );
+    
+    if (data?.tasks) {
+      setTasks(data.tasks);
+    }
+  }, [fetchData]);
+  
+  const fetchAnalytics = useCallback(async () => {
+    const data = await fetchData(
+      `${API_BASE_URL}/analytics`,
+      {},
+      setLoadingAnalytics,
+      'Failed to load analytics data'
+    );
+    
+    if (data?.analytics) {
+      setAnalytics(data.analytics);
+    }
+  }, [fetchData]);
+  
+  const fetchScheduledReports = useCallback(async () => {
+    const data = await fetchData(
+      `${API_BASE_URL}/reports/scheduled`,
+      {},
+      setLoading,
+      'Failed to load scheduled reports'
+    );
+    
+    if (data?.reports) {
+      setScheduledReports(data.reports);
+    }
+  }, [fetchData]);
+  
+  // Initialize data on component mount
   useEffect(() => {
     fetchProjects();
     fetchScheduledReports();
-  }, []);
+  }, [fetchProjects, fetchScheduledReports]);
   
+  // Load data based on selected report type
   useEffect(() => {
     if (reportType === 'project' && projectId) {
       fetchProjectTasks(projectId);
@@ -85,110 +178,15 @@ const ReportManager = () => {
     } else if (reportType === 'analytics') {
       fetchAnalytics();
     }
-  }, [reportType, projectId]);
+  }, [reportType, projectId, fetchProjectTasks, fetchAllTasks, fetchAnalytics]);
   
-  const fetchProjects = async () => {
-    setLoadingProjects(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.status) {
-        setProjects(response.data.projects || []);
-        if (response.data.projects?.length > 0) {
-          setProjectId(response.data.projects[0]._id);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    } finally {
-      setLoadingProjects(false);
-    }
-  };
-  
-  const fetchAllTasks = async () => {
-    setLoadingTasks(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/tasks`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          limit: 200,
-          includeDetails: true
-        }
-      });
-      
-      if (response.data.status) {
-        setTasks(response.data.tasks || []);
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      toast.error('Failed to load tasks');
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-  
-  const fetchProjectTasks = async (pid) => {
-    setLoadingTasks(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/projects/${pid}/tasks`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.status) {
-        setTasks(response.data.tasks || []);
-      }
-    } catch (error) {
-      console.error('Error fetching project tasks:', error);
-      toast.error('Failed to load project tasks');
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-  
-  const fetchAnalytics = async () => {
-    setLoadingAnalytics(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/analytics`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.status) {
-        setAnalytics(response.data.analytics);
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      toast.error('Failed to load analytics data');
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
-  
-  const fetchScheduledReports = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/reports/scheduled`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.status) {
-        setScheduledReports(response.data.reports || []);
-      }
-    } catch (error) {
-      console.error('Error fetching scheduled reports:', error);
-      toast.error('Failed to load scheduled reports');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  // Generate report based on selected format
   const handleGenerateReport = async (format) => {
     try {
       setLoading(true);
       let fileName;
       
+      // Simplified report generation logic
       if (reportType === 'tasks') {
         if (format === 'pdf') {
           fileName = generateTaskReportPdf(tasks, 'Task Report');
@@ -236,6 +234,7 @@ const ReportManager = () => {
     }
   };
   
+  // Schedule a report
   const handleScheduleReport = async () => {
     try {
       setLoading(true);
@@ -261,8 +260,10 @@ const ReportManager = () => {
     }
   };
   
+  // Delete a scheduled report
   const handleDeleteScheduledReport = async (reportId) => {
     try {
+      setLoading(true);
       const response = await axios.delete(
         `${API_BASE_URL}/reports/scheduled/${reportId}`, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -277,9 +278,12 @@ const ReportManager = () => {
     } catch (error) {
       console.error('Error deleting scheduled report:', error);
       toast.error('Failed to delete scheduled report');
+    } finally {
+      setLoading(false);
     }
   };
   
+  // Form field change handler with type checking
   const handleScheduleFormChange = (e) => {
     const { name, value, checked, type } = e.target;
     setScheduleForm(prev => ({
@@ -288,18 +292,23 @@ const ReportManager = () => {
     }));
   };
   
-  // Add this helper function to the ReportManager component
+  /**
+   * Helper function to get the day name from a day number
+   * @param {Number} dayNum - Day number (0-6, where 0 is Sunday)
+   * @returns {String} Day name
+   */
   const getDayName = (dayNum) => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[dayNum] || 'Unknown';
   };
-
+  
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
         Report Manager
       </Typography>
       
+      {/* Report Generation Panel */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
           Generate Reports
@@ -341,7 +350,7 @@ const ReportManager = () => {
           )}
         </Grid>
         
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Box sx={{ display: 'flex', gap: 2, mt: 3, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             color="primary"
@@ -389,6 +398,7 @@ const ReportManager = () => {
         )}
       </Paper>
       
+      {/* Scheduled Reports Panel */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>
           Scheduled Reports
@@ -546,13 +556,9 @@ const ReportManager = () => {
                       onChange={handleScheduleFormChange}
                       label="Day of Week"
                     >
-                      <MenuItem value={1}>Monday</MenuItem>
-                      <MenuItem value={2}>Tuesday</MenuItem>
-                      <MenuItem value={3}>Wednesday</MenuItem>
-                      <MenuItem value={4}>Thursday</MenuItem>
-                      <MenuItem value={5}>Friday</MenuItem>
-                      <MenuItem value={6}>Saturday</MenuItem>
-                      <MenuItem value={0}>Sunday</MenuItem>
+                      {DAYS_OF_WEEK.map((day, index) => (
+                        <MenuItem key={day} value={index}>{day}</MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
