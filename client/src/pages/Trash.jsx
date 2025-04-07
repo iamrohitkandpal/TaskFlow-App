@@ -54,11 +54,11 @@ const Trash = () => {
 
       switch (type) {
         case "delete":
-          result = await deleteRestoreTask({
-            id: selected,
-            actionType: "delete",
-          }).unwrap();
-          break;
+        result = await deleteRestoreTask({
+          id: selected,
+          actionType: "delete",
+        }).unwrap();
+        break;
         case "restore":
           result = await deleteRestoreTask({
             id: selected,

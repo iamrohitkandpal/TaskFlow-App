@@ -27,22 +27,18 @@ const TaskDialog = ({ task }) => {
       const res = await duplicateTask(task._id).unwrap();
       toast.success(res?.message);
 
-      // You can either:
-      // 1. Refresh the task list using a refetch function from RTK Query
-      // 2. Navigate to the new duplicated task
-
-      // Option 1: If you have a refetch function from useQuery hook
-      if (typeof refetch === 'function') {
-        refetch();
-      }
-      
-      // Option 2: Or navigate to the duplicated task if you have the ID in response
+      // Handle successful duplication
       if (res?.duplicatedTask?._id) {
+        // Option 1: Navigate to the duplicated task
         navigate(`/task/${res.duplicatedTask._id}`);
+      } else {
+        // Option 2: Stay on current page and let state update
+        // This relies on RTK Query cache invalidation
+        // You could add a custom event or trigger here if needed
       }
     } catch (error) {
       console.error("Failed to duplicate task:", error);
-      toast.error(error?.data?.message || error?.error);
+      toast.error(error?.data?.message || error?.error || "Failed to duplicate task");
     }
   };
 
