@@ -18,7 +18,7 @@ const ChangePassword = ({ open, setOpen }) => {
   const [changeUserPassword, { isLoading }] = useChangePasswordMutation();
 
   const handleOnSubmit = async (data) => {
-    if(data?.password !== data.cpss) {
+    if(data?.password !== data.cpass) {
         toast.warning("Password Doesn't Match");
         return;
     }

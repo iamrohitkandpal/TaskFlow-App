@@ -41,7 +41,7 @@ const Table = ({ tasks }) => {
 
   const deleteHandler = async () => {
     try {
-      const res = await trashTask({ id: selected, isTrash: true }).unwrap();
+      const res = await trashTask({ id: selected, isTrashed: true }).unwrap();
       toast.success(res?.message);
 
       setTimeout(() => {

@@ -27,12 +27,21 @@ const TaskDialog = ({ task }) => {
       const res = await duplicateTask(task._id).unwrap();
       toast.success(res?.message);
 
-      setTimeout(() => {
-        setOpenDialog(false);
-        window.location.reload();
-      }, 500);
+      // You can either:
+      // 1. Refresh the task list using a refetch function from RTK Query
+      // 2. Navigate to the new duplicated task
+
+      // Option 1: If you have a refetch function from useQuery hook
+      if (typeof refetch === 'function') {
+        refetch();
+      }
+      
+      // Option 2: Or navigate to the duplicated task if you have the ID in response
+      if (res?.duplicatedTask?._id) {
+        navigate(`/task/${res.duplicatedTask._id}`);
+      }
     } catch (error) {
-      console.log(error);
+      console.error("Failed to duplicate task:", error);
       toast.error(error?.data?.message || error?.error);
     }
   };
@@ -52,7 +61,9 @@ const TaskDialog = ({ task }) => {
 
       setTimeout(() => {
         setOpenDialog(false);
-        window.location.reload();
+        // Use a state-based approach to refresh data
+        refetch(); // Assuming you have a refetch function from RTK Query
+        // Or replace with a navigation action if needed
       }, 500);
     } catch (error) {
       console.error("Failed to delete task:", error.message);
