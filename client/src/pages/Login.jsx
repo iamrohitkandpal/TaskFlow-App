@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import Textbox from "../components/Textbox";
@@ -15,6 +15,7 @@ const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [login, { isLoading }] = useLoginMutation();
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
@@ -31,29 +32,28 @@ const Login = () => {
     }
   }, [user, navigate]);
 
-  const submitHandler = async (data) => {
+  const handleOnSubmit = async (data) => {
     try {
-      // Add validation
-      const validation = validateLoginCredentials(data);
-      if (!validation.isValid) {
-        Object.entries(validation.errors).forEach(([field, message]) => {
-          toast.error(message);
-        });
-        return;
-      }
+      setLoading(true);
+      const res = await login(data).unwrap();
+      if (res?.status) {
+        dispatch(setCredentials(res));
 
-      const result = await login(data).unwrap();
-      
-      if (result.status) {
-        dispatch(setCredentials({ data: result }));
-        toast.success("Logged in successfully");
+        // Process any pending offline changes
+        const syncService = await import("../services/syncService");
+        syncService.syncDataWithServer(res.token);
+
         navigate("/dashboard");
-      } else {
-        toast.error(result.message || "Login failed");
       }
     } catch (error) {
-      console.log("Error logging in", error);
-      toast.error(error?.data?.message || error?.message || "Login failed");
+      console.error("Login error:", error);
+      const errorMessage =
+        error.data?.message ||
+        error.error ||
+        "Login failed. Please check your credentials.";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,7 +80,7 @@ const Login = () => {
         {/* Right Side */}
         <div className="w-full md:w-1/3 p-4 md:p-1 flex flex-col justify-center items-center">
           <form
-            onSubmit={handleSubmit(submitHandler)}
+            onSubmit={handleSubmit(handleOnSubmit)}
             className="form-container w-full md:w-[450px] flex flex-col gap-y-8 bg-white px-10 pt-14 pb-14"
           >
             <div className="">
@@ -120,11 +120,15 @@ const Login = () => {
                 Forget Password?
               </span>
 
-              {isLoading ? <Loader /> : <Button
-                type="submit"
-                label="Login"
-                className="w-full rounded-full bg-blue-600 h-10 text-white transition-all hover:bg-blue-700"
-              />}
+              {isLoading || loading ? (
+                <Loader />
+              ) : (
+                <Button
+                  type="submit"
+                  label="Login"
+                  className="w-full rounded-full bg-blue-600 h-10 text-white transition-all hover:bg-blue-700"
+                />
+              )}
             </div>
           </form>
         </div>

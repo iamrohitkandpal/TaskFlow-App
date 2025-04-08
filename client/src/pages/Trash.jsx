@@ -84,7 +84,7 @@ const Trash = () => {
       toast.success(result?.message);
       setTimeout(() => {
         setOpenDialog(false);
-        refetch();
+        refetch(); // Use refetch instead of window.location.reload()
       }, 500);
     } catch (error) {
       console.log("Error in deleteRestoreHandler", error);

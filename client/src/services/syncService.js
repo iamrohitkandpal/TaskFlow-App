@@ -63,9 +63,38 @@ export const processPendingRequests = async (authToken) => {
   const pendingRequests = await store.getAll();
   
   const results = [];
+  const successIds = [];
+  const conflicts = [];
+  
+  // Sort by timestamp to process oldest first
+  pendingRequests.sort((a, b) => a.timestamp - b.timestamp);
   
   for (const request of pendingRequests) {
     try {
+      // For update operations, check for conflicts first
+      if (request.method === 'PUT' && request.url.includes('/tasks/')) {
+        // Extract task ID from URL
+        const taskId = request.url.split('/').pop().split('?')[0];
+        
+        // Fetch current task state from server
+        const currentResponse = await axios.get(`${API_BASE_URL}/tasks/${taskId}`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        const serverTask = currentResponse.data.task;
+        
+        // Check if there's a conflict (server version is newer)
+        if (serverTask.updatedAt > request.data.updatedAt) {
+          conflicts.push({
+            requestId: request.id,
+            clientData: request.data,
+            serverData: serverTask
+          });
+          continue; // Skip this request for now
+        }
+      }
+      
+      // Process the request
       const response = await axios({
         url: request.url,
         method: request.method,
@@ -75,13 +104,12 @@ export const processPendingRequests = async (authToken) => {
         }
       });
       
+      successIds.push(request.id);
       results.push({
         success: true,
         requestId: request.id,
         response: response.data
       });
-      
-      await store.delete(request.id);
     } catch (error) {
       console.error('Failed to process pending request:', error);
       results.push({
@@ -89,16 +117,19 @@ export const processPendingRequests = async (authToken) => {
         requestId: request.id,
         error: error.message
       });
-      
-      // If the error is not due to network issues, remove the failed request
-      if (error.response) {
-        await store.delete(request.id);
-      }
     }
   }
   
-  await tx.done;
-  return results;
+  // Delete successfully processed requests
+  for (const id of successIds) {
+    await store.delete(id);
+  }
+  
+  // Return results including any conflicts
+  return {
+    results,
+    conflicts
+  };
 };
 
 // Use this function when the app comes back online
@@ -132,4 +163,58 @@ export const syncDataWithServer = async (authToken) => {
       error: error.message 
     };
   }
+};
+
+// Add conflict resolution handler
+export const resolveConflict = async (conflict, resolution) => {
+  const db = await initDB();
+  const tx = db.transaction('pendingRequests', 'readwrite');
+  const store = tx.objectStore('pendingRequests');
+  
+  // Handle based on resolution type ('local', 'server', or 'merge')
+  if (resolution === 'local') {
+    // Apply local changes to server
+    try {
+      await axios({
+        url: conflict.clientData.url,
+        method: conflict.clientData.method,
+        data: conflict.clientData.data,
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'X-Force-Update': 'true'
+        }
+      });
+    } catch (error) {
+      console.error('Error applying local changes:', error);
+    }
+  }
+  else if (resolution === 'server') {
+    // Accept server version, delete pending request
+    await store.delete(conflict.requestId);
+  }
+  else if (resolution === 'merge') {
+    // Create merged version
+    const mergedData = {
+      ...conflict.serverData,
+      ...conflict.clientData.data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    try {
+      await axios({
+        url: conflict.clientData.url,
+        method: conflict.clientData.method,
+        data: mergedData,
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
+      
+      await store.delete(conflict.requestId);
+    } catch (error) {
+      console.error('Error merging changes:', error);
+    }
+  }
+  
+  await tx.done;
 };

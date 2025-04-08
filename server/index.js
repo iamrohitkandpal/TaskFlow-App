@@ -10,6 +10,9 @@ import { Server } from "socket.io";
 import { startCronJobs } from './services/cron.service.js';
 import { handleTaskUpdate } from "./services/socket.service.js";
 import './cron/workflow.jobs.js';
+import { standardizeResponse } from './middlewares/response.middleware.js';
+import { csrfProtection, attachCsrfToken } from './middlewares/security.middleware.js';
+import { apiLimiter, authLimiter } from './middlewares/rate-limit.middleware.js';
 
 // Load environment variables
 import dotenv from "dotenv";
@@ -51,41 +54,43 @@ const io = new Server(httpServer, { cors: corsOptions });
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Join a room based on user ID for targeted updates
-  socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`User ${userId} joined their room`);
-  });
-  
-  // Join project rooms for project-specific updates
-  socket.on("joinProject", (projectId) => {
-    socket.join(`project-${projectId}`);
-    console.log(`Socket ${socket.id} joined project room: project-${projectId}`);
-  });
-
-  // Handle task updates with enhanced functionality
-  socket.on("taskUpdate", (data) => {
-    handleTaskUpdate(socket, data);
-  });
-
-  // Handle disconnection
-  socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
+  // Set up all socket event handlers
+  setupSocketHandlers(io, socket);
 });
 
 // Export io instance to be used in route handlers
 export { io };
 
-// Middleware for CORS
+// Add the middleware in the correct order - CSRF must be after cookie-parser
 app.use(cors(corsOptions));
-
-// Middleware for parsing JSON and URL-encoded data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Middleware for parsing cookies
 app.use(cookieParser());
+
+// Add security headers middleware
+import helmet from 'helmet';
+
+// Apply early in the middleware chain
+app.use(helmet());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+    styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+    imgSrc: ["'self'", "data:", "res.cloudinary.com"],
+    connectSrc: ["'self'", "wss:", "ws:"]
+  }
+}));
+
+// Apply rate limiting to all API routes
+app.use('/api', apiLimiter);
+app.use('/api/users/login', authLimiter);
+app.use('/api/users/register', authLimiter);
+
+// Setup CSRF protection after cookie-parser
+app.use(csrfProtection);
+app.use(attachCsrfToken);
+app.use(standardizeResponse);
 
 // Configure logger - use a more concise format in production
 if (NODE_ENV === 'production') {
@@ -99,7 +104,12 @@ app.use("/api", routes);
 
 // Health check endpoint for monitoring
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', environment: NODE_ENV });
+  res.status(200).json({ 
+    status: 'ok', 
+    environment: NODE_ENV, 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Error handling

@@ -1,12 +1,30 @@
-import { io } from "socket.io-client";
+import io from 'socket.io-client';
 import store from "../redux/store";
 import { addTask, updateTask, deleteTask } from "../redux/slices/taskSlice";
 import { addActivity } from "../redux/slices/activitySlice";
+import { API_BASE_URL } from '../config/constants';
 
-// Create socket instance with credentials support
-const socket = io(import.meta.env.VITE_BASE_URL, {
-  withCredentials: true,
-  autoConnect: false,
+// Create socket connection, replacing the http:// or https:// with ws:// or wss://
+const socketUrl = API_BASE_URL.replace(/^http/, 'ws');
+const socket = io(socketUrl, {
+  transports: ['websocket'],
+  autoConnect: true,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
+
+// Setup connection event listeners
+socket.on('connect', () => {
+  console.log('Socket connected:', socket.id);
+});
+
+socket.on('disconnect', () => {
+  console.log('Socket disconnected');
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Socket connection error:', error);
 });
 
 /**
