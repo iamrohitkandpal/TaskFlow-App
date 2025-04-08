@@ -5,6 +5,8 @@ import Textbox from "../Textbox";
 import Button from "../Button";
 import { useCreateSubTaskMutation } from "../../redux/slices/api/taskApiSlice";
 import { toast } from "sonner";
+import { useDispatch } from 'react-redux';
+import { apiSlice } from '../../redux/slices/apiSlice';
 
 const AddSubTask = ({ open, setOpen, id }) => {
   const {
@@ -15,6 +17,7 @@ const AddSubTask = ({ open, setOpen, id }) => {
 
   // Uncomment and implement the mutation as required
   const [addSubTask] = useCreateSubTaskMutation();
+  const dispatch = useDispatch();
 
   const handleOnSubmit = async (data) => {
     try {
@@ -22,7 +25,7 @@ const AddSubTask = ({ open, setOpen, id }) => {
       toast.success(res.message);
       setTimeout(() => {
         setOpen(false);
-        window.location.reload();
+        dispatch(apiSlice.util.invalidateTags(['Tasks'])); // Refresh task data without full page reload
       }, 500);
     } catch (err) {
       console.error(err);

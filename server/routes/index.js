@@ -10,7 +10,7 @@ import calendarRoutes from './calendar.routes.js';
 import notificationRoutes from './notification.routes.js';
 import pushNotificationRoutes from './push-notification.routes.js';
 import searchRoutes from './search.routes.js';
-import reportRoutes from './routes/report.routes.js';
+import reportRoutes from './report.routes.js';
 
 const router = express.Router();
 

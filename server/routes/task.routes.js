@@ -16,7 +16,7 @@ import { checkWipLimit } from '../controllers/user-settings.controller.js';
 
 const router = express.Router();
 
-router.post("/create", protectedRoute, isAdminRoute, createTask);
+router.post("/create", protectedRoute, isAdminRoute, checkWipLimit, createTask);
 router.post("/duplicate/:id", protectedRoute, isAdminRoute, duplicateTask);
 router.post("/activity/:id", protectedRoute, postTaskActivity);
 
@@ -37,7 +37,7 @@ router.delete(
 
 router.post('/', protectedRoute, checkWipLimit, createTask);
 
-// Add this route to your task routes
-router.get('/wip-limit/:userId', auth, checkUserWipLimit);
+// Make sure this route is correctly defined and imported
+router.get('/wip-limit/:userId', protectedRoute, checkUserWipLimit);
 
 export default router;

@@ -15,6 +15,8 @@ import Button from "../Button";
 import ConfirmationDialog from "../Dialogs";
 import { useTrashTaskMutation } from "../../redux/slices/api/taskApiSlice";
 import AddTask from "./AddTask";
+import { useDispatch } from 'react-redux';
+import { apiSlice } from '../../redux/slices/apiSlice';
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -28,6 +30,7 @@ const Table = ({ tasks }) => {
   const [openEdit, setOpenEdit] = useState(false);
 
   const [trashTask] = useTrashTaskMutation();
+  const dispatch = useDispatch();
 
   const deleteClicks = (id) => {
     setSelected(id);
@@ -41,12 +44,15 @@ const Table = ({ tasks }) => {
 
   const deleteHandler = async () => {
     try {
-      const res = await trashTask({ id: selected, isTrashed: true }).unwrap();
+      const res = await trashTask({ 
+        id: selected, 
+        isTrashed: true 
+      }).unwrap();
       toast.success(res?.message);
 
       setTimeout(() => {
         setOpenDialog(false);
-        window.location.reload();
+        dispatch(apiSlice.util.invalidateTags(['Tasks']));
       }, 500);
     } catch (error) {
       console.error(error);

@@ -11,6 +11,7 @@ import ConfirmationDialog from "../Dialogs";
 import AddSubTask from './AddSubtask';
 import { useDuplicateTaskMutation, useTrashTaskMutation } from "../../redux/slices/api/taskApiSlice";
 import { toast } from "sonner";
+import { useDispatch } from 'react-redux';
 
 const TaskDialog = ({ task }) => {
   const [open, setOpen] = useState(false); // For AddSubTask modal
@@ -20,6 +21,7 @@ const TaskDialog = ({ task }) => {
   const navigate = useNavigate();
   const [deleteTask] = useTrashTaskMutation();
   const [duplicateTask] = useDuplicateTaskMutation();
+  const dispatch = useDispatch();
 
   // Handlers
   const duplicateHandler = async () => {
@@ -57,15 +59,12 @@ const TaskDialog = ({ task }) => {
 
       setTimeout(() => {
         setOpenDialog(false);
-        // Use a state-based approach to refresh data
-        refetch(); // Assuming you have a refetch function from RTK Query
-        // Or replace with a navigation action if needed
+        dispatch(apiSlice.util.resetApiState()); // Reset RTK Query cache
       }, 500);
     } catch (error) {
       console.error("Failed to delete task:", error.message);
       toast.error(error?.data?.message || error?.error);
     }
-    console.log("Task deleted!");
     setOpenDialog(false); // Close confirmation dialog after deletion
   };
 

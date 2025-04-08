@@ -17,12 +17,17 @@ import { dateFormatter } from "../../utils";
 import { useGetTeamListQuery } from "../../redux/slices/api/userApiSlice";
 import { useEstimateEffortForNewTaskMutation } from '../../redux/slices/api/aiApiSlice';
 import RichTextEditor from '../editors/RichTextEditor';
+import { useDispatch } from 'react-redux';
+import { apiSlice } from '../../redux/slices/api/apiSlice';
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORITY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain'];
+
 const AddTask = ({ open, setOpen, task }) => {
-  // console.log("Task:", task);
+  console.log("Task:", task); 
 
   const defaultValues = {
     title: task?.title || "",
@@ -55,6 +60,7 @@ const AddTask = ({ open, setOpen, task }) => {
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
 
   const { data: teamData, isLoading: isLoadingTeam } = useGetTeamListQuery();
+  const dispatch = useDispatch();
 
   const submitHandler = async (data) => {
     const uploadedFileURLs = [];
@@ -76,8 +82,6 @@ const AddTask = ({ open, setOpen, task }) => {
         priority,
       };
 
-      // console.log("New data:", newData);
-
       const res = task?._id
         ? await updateTask({ ...newData, _id: task._id }).unwrap()
         : await createTask(newData).unwrap();
@@ -86,7 +90,7 @@ const AddTask = ({ open, setOpen, task }) => {
 
       setTimeout(() => {
         setOpen(false);
-        window.location.reload();
+        dispatch(apiSlice.util.invalidateTags(['Tasks']));
       }, 1000);
     } catch (error) {
       console.error("Error submitting the form:", error.message);
@@ -97,9 +101,23 @@ const AddTask = ({ open, setOpen, task }) => {
   };
 
   const handleSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setAssets(selectedFiles);
-    console.log("Selected files:", selectedFiles);
+    const files = Array.from(e.target.files);
+    
+    // Validate file types and sizes
+    const invalidFiles = files.filter(file => 
+      !ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE
+    );
+    
+    if (invalidFiles.length > 0) {
+      toast.error(`Some files were rejected. Please only upload images, PDFs or text files under 5MB.`);
+      // Filter out invalid files
+      const validFiles = files.filter(file => 
+        ALLOWED_FILE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE
+      );
+      setAssets(validFiles);
+    } else {
+      setAssets(files);
+    }
   };
 
   const handleEstimateEffort = async () => {

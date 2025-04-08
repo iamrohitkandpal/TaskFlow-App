@@ -4,17 +4,20 @@ import { activateUserProfile, changeUserPassword, deleteUserProfile, getNotifica
 
 const router = express.Router();
 
+// Public routes
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/logout", logoutUser);
 
-// Change this route to be accessible to all authenticated users, not just admins
+// Protected routes
+router.get("/profile", protectedRoute, getProfile);
+router.post("/logout", protectedRoute, logoutUser);
+router.put("/profile", protectedRoute, changeProfile);
+router.put("/change-password", protectedRoute, changePassword);
+
 router.get("/get-team", protectedRoute, getTeamList);
 router.get("/notifications", protectedRoute, getNotificationsList);
 
-router.put("/profile", protectedRoute, updateUserProfile);
 router.put("/read-noti", protectedRoute, markNotificationRead);
-router.put("/change-password", protectedRoute, changeUserPassword);
 
 router.put('/:userId/skills', protectedRoute, updateUserSkills);
 
