@@ -5,6 +5,7 @@ import KanbanColumn from './KanbanColumn';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/constants';
 import UserWipLimits from './UserWipLimits';
+import { useUpdateTaskStatusMutation } from '../../features/tasks/taskApiSlice';
 
 const KanbanBoard = ({ projectId }) => {
   const [tasks, setTasks] = useState([]);
@@ -13,6 +14,7 @@ const KanbanBoard = ({ projectId }) => {
   const [categories, setCategories] = useState(['Uncategorized']);
   const [columns] = useState(['todo', 'in-progress', 'review', 'completed']);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [updateTaskStatus] = useUpdateTaskStatusMutation();
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -83,9 +85,7 @@ const KanbanBoard = ({ projectId }) => {
         }
         
         // Update task status on the server
-        await axios.put(`${API_BASE_URL}/tasks/${draggableId}/status`, {
-          status: newStatus
-        });
+        await updateTaskStatus({ id: draggableId, status: newStatus }).unwrap();
         
         // Extract the category from droppableId
         const newCategory = destination.droppableId.split('-')[2];
@@ -167,13 +167,7 @@ const KanbanBoard = ({ projectId }) => {
               {category}
             </Typography>
             
-            <Box 
-              sx={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(4, 1fr)', 
-                gap: 2 
-              }}
-            >
+            <div className="overflow-x-auto pb-4 flex flex-col md:flex-row">
               {columns.map(column => {
                 const columnTasks = tasks.filter(
                   task => 
@@ -190,7 +184,7 @@ const KanbanBoard = ({ projectId }) => {
                   />
                 );
               })}
-            </Box>
+            </div>
           </Box>
         ))}
       </DragDropContext>

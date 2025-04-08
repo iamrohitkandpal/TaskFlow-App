@@ -59,6 +59,7 @@ const EffortEstimate = ({ taskId }) => {
   
   const updateActualEffort = async (value) => {
     try {
+      setLoading(true);
       const response = await axios.patch(
         `${API_BASE_URL}/tasks/${taskId}/effort`,
         { actualEffort: value },
@@ -67,9 +68,13 @@ const EffortEstimate = ({ taskId }) => {
       
       if (response.data.status) {
         setActualEffort(value);
+        toast.success('Effort updated successfully');
       }
     } catch (error) {
       console.error('Error updating actual effort:', error);
+      toast.error('Failed to update effort: ' + (error.response?.data?.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
     }
   };
   

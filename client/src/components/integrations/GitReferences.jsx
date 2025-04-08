@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useGetUserIntegrationsQuery, useLinkGitReferenceMutation } from '../../redux/slices/api/integrationApiSlice';
 import { FaGithub, FaGitlab, FaCodeBranch, FaCodePullRequest, FaPlus } from 'react-icons/fa';
-import GitReferences from '../components/integrations/GitReferences';
 import Modal from '../Modal';
 import { toast } from 'sonner';
 
