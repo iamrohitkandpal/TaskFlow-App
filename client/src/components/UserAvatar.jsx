@@ -36,7 +36,6 @@ const UserAvatar = () => {
         toast.error("Logout failed");
       }
     } catch (error) {
-      console.log("Failed to log out, Error: " + error);
       toast.error("Something went wrong");
       
       // Don't dispatch logout on error to prevent data inconsistencies

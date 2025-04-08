@@ -39,8 +39,7 @@ function TaskCard({ task }) {
             <span className="uppercase">{task?.priority} Priority</span>
           </div>
 
-          {user?.isAdmin && <TaskDialog task={task} />}
-          {/* <TaskDialog task={task} /> // Replace this line with the line above for testing */}
+          {(user?.isAdmin || task?.createdBy === user?._id) && <TaskDialog task={task} />}
         </div>
 
         <>

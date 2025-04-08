@@ -17,12 +17,12 @@ import { IoClose } from "react-icons/io5";
 import Settings from "./pages/Settings";
 import { initializeSocket, disconnectSocket } from "./services/socketService";
 import Reports from './pages/Reports';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function Layout() {
   const location = useLocation();
 
   const {user} = useSelector((state) => state.auth);
-  // console.log(user);
 
   return user ? (
     <div className="w-full h-screen flex flex-col md:flex-row">
@@ -98,42 +98,43 @@ function App() {
       checkAuth(dispatch);
     }
     
-    // Initialize socket connection if user is logged in
+    // Initialize socket only when userId is available, not just when object exists
     if (user?.userId) {
       initializeSocket(user.userId);
     }
     
-    // Clean up socket connection on unmount
     return () => {
       disconnectSocket();
     };
   }, [dispatch, user?.userId]);
 
   return (
-    <main className="w-full min-h-screen bg-[#f3f4f6]">
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/completed/:status" element={<Tasks />} />
-          <Route path="/in-progress/:status" element={<Tasks />} />
-          <Route path="/todo/:status" element={<Tasks />} />
-          <Route path="/team" element={<Users />} />
-          <Route path="/trashed" element={<Trash />} />
-          <Route path="/task/:id" element={<TaskDetails />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/settings/integrations" element={<PrivateRoute><IntegrationsSettings /></PrivateRoute>} />
-          <Route path="/settings/integrations/:provider/callback" element={<PrivateRoute><OAuthCallback /></PrivateRoute>} />
-          <Route path="/projects/:projectId/timeline" element={<ProjectTimeline />} />
-          <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-        </Route>
+    <ErrorBoundary>
+      <main className="w-full min-h-screen bg-[#f3f4f6]">
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/completed/:status" element={<Tasks />} />
+            <Route path="/in-progress/:status" element={<Tasks />} />
+            <Route path="/todo/:status" element={<Tasks />} />
+            <Route path="/team" element={<Users />} />
+            <Route path="/trashed" element={<Trash />} />
+            <Route path="/task/:id" element={<TaskDetails />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/integrations" element={<PrivateRoute><IntegrationsSettings /></PrivateRoute>} />
+            <Route path="/settings/integrations/:provider/callback" element={<PrivateRoute><OAuthCallback /></PrivateRoute>} />
+            <Route path="/projects/:projectId/timeline" element={<ProjectTimeline />} />
+            <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+          </Route>
 
-        <Route path="/login" element={<Login />} />
-      </Routes>
+          <Route path="/login" element={<Login />} />
+        </Routes>
 
-      <Toaster richColors />
-    </main>
+        <Toaster richColors />
+      </main>
+    </ErrorBoundary>
   );
 }
 

@@ -19,19 +19,17 @@ const ChangePassword = ({ open, setOpen }) => {
 
   const handleOnSubmit = async (data) => {
     if(data?.password !== data.cpass) {
-        toast.warning("Password Doesn't Match");
-        return;
+      toast.warning("Password Doesn't Match");
+      return;
     }
+    
     try {
-      const result = await changeUserPassword(data).unwrap();
-      toast.success("Password Changed Successfully");
-
-      setTimeout(() => {
-          setOpen(false);
-      }, 1500);
+      await changePassword(data).unwrap();
+      toast.success("Password Changed Successfully!");
+      reset();
     } catch (error) {
-      console.log("Error changing password", error);
-      toast.error(error?.data?.message || error?.message);
+      console.log("ERROR IN CHANGE PASSWORD: ", error);
+      toast.error(error?.data?.message || "Something went wrong");
     }
   };
 
