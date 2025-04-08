@@ -51,19 +51,3 @@ const cleanupTemporaryFiles = () => {
     }
   });
 };
-
-// Add to your server.js or app.js file
-import reportRoutes from './routes/report.routes.js';
-import { startCronJobs } from './services/cron.service.js';
-
-// Add this route
-app.use('/api/reports', reportRoutes);
-
-// Start cron jobs after database connection
-startCronJobs();
-
-// Add this import to the imports section in App.jsx
-import Reports from './pages/Reports';
-
-// Add this route inside the Layout routes
-<Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />

@@ -463,3 +463,22 @@ export const createReportExcel = async (reportType, data, title, format = 'xlsx'
     throw error;
   }
 };
+
+const generateReport = async (format, type, data, title) => {
+  try {
+    let reportPath;
+    
+    if (format === 'pdf') {
+      reportPath = await createReportPdf(type, data, title);
+    } else if (format === 'excel' || format === 'csv') {
+      reportPath = await createReportExcel(type, data, title, format);
+    } else {
+      throw new Error(`Unsupported format: ${format}`);
+    }
+    
+    return reportPath;
+  } catch (error) {
+    console.error(`Error generating ${format} report:`, error);
+    throw error;
+  }
+};

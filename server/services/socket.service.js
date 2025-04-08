@@ -137,14 +137,19 @@ const setupCollaborativeEditing = (io, socket) => {
   socket.on('content-update', ({ taskId, content, userId }) => {
     if (!taskId || !userId) return;
     
-    const roomName = `task-collab-${taskId}`;
-    
-    // Broadcast the content update to all clients in the room except sender
-    socket.to(roomName).emit('content-update', {
-      taskId,
-      content,
-      userId
-    });
+    // Add try-catch for error handling
+    try {
+      const roomName = `task-collab-${taskId}`;
+      
+      // Broadcast the content update to all clients in the room except sender
+      socket.to(roomName).emit('content-update', {
+        taskId,
+        content,
+        userId
+      });
+    } catch (error) {
+      console.error('Error handling content update:', error);
+    }
   });
   
   // Clean up on disconnect
@@ -177,6 +182,37 @@ const setupCollaborativeEditing = (io, socket) => {
         }
       }
     }
+  });
+};
+
+export const setupSocketHandlers = (io, socket) => {
+  // Handle task updates
+  socket.on("taskUpdate", (data) => {
+    handleTaskUpdate(socket, data);
+  });
+  
+  // Handle collaborative editing
+  setupCollaborativeEditing(io, socket);
+  
+  // Join a room based on user ID for targeted updates
+  socket.on("join", (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`User ${userId} joined their room`);
+    }
+  });
+  
+  // Join project rooms for project-specific updates
+  socket.on("joinProject", (projectId) => {
+    if (projectId) {
+      socket.join(`project-${projectId}`);
+      console.log(`Socket ${socket.id} joined project room: project-${projectId}`);
+    }
+  });
+  
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
   });
 };
 
