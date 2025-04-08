@@ -4,20 +4,11 @@ import Activity from "../models/activity.model.js";
 // Get recent activities
 export const getRecentActivities = async (req, res) => {
   try {
-    const { limit = 10, projectId } = req.query;
+    const { limit = 10 } = req.query;
     
-    const query = {};
-    if (projectId) {
-      // If project ID is specified, filter activities by project
-      // This assumes tasks have a projectId field
-      const projectTasks = await Task.find({ projectId }).select('_id');
-      const taskIds = projectTasks.map(task => task._id);
-      query.taskId = { $in: taskIds };
-    }
-    
-    const activities = await Activity.find(query)
-      .populate("user", "name email avatar")
-      .populate("taskId", "title")
+    const activities = await Activity.find()
+      .populate('user', 'name email avatar')
+      .populate('taskId', 'title')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
     

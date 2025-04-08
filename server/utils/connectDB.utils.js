@@ -1,13 +1,39 @@
 import mongoose from "mongoose";
 import jwt from 'jsonwebtoken';
 
+// Add reconnection logic to database connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URL);
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      // Add these for better reconnection handling
+      autoIndex: true,
+      retryWrites: true,
+    });
+
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    
+    // Add connection event handlers
+    mongoose.connection.on('error', err => {
+      console.error(`MongoDB connection error: ${err}`);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected, attempting to reconnect...');
+    });
+    
+    return conn;
   } catch (error) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
+    console.error(`Error connecting to MongoDB: ${error.message}`);
+    // Retry connection after delay instead of exiting in production
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Retrying connection in 5 seconds...');
+      setTimeout(connectDB, 5000);
+    } else {
+      process.exit(1);
+    }
   }
 };
 

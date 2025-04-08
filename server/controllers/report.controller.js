@@ -231,62 +231,77 @@ export const processScheduledReports = async () => {
 
 // Process a single report
 const processReport = async (report) => {
-  let data;
-  let title;
-  
-  // Get data for the report
-  if (report.reportType === 'tasks') {
-    const tasks = await Task.find()
-      .populate('assignee', 'name')
-      .lean();
-      
-    data = tasks;
-    title = 'Task Report';
-  } else if (report.reportType === 'project') {
-    const project = await Project.findById(report.projectId).lean();
-    const tasks = await Task.find({ projectId: report.projectId })
-      .populate('assignee', 'name')
-      .lean();
-      
-    data = { project, tasks };
-    title = `Project: ${project.name}`;
-  } else if (report.reportType === 'analytics') {
-    // Use the analytics controller to get analytics data
-    const analyticsData = await getAnalytics(report.userId._id);
-    data = analyticsData;
-    title = 'Analytics Report';
-  }
-  
-  // Generate the report
-  const reportFile = await generateReport(report.format, report.reportType, data, title);
-  
-  // If email recipients are specified, send the report by email
-  if (report.emailRecipients) {
-    const recipients = report.emailRecipients.split(',').map(email => email.trim());
+  try {
+    let data;
+    let title;
     
-    if (recipients.length > 0) {
-      await sendReportEmail({
-        recipients,
-        reportType: report.reportType,
-        format: report.format,
-        title,
-        senderName: report.userId.name,
-        attachmentPath: reportFile
-      });
+    // Get data for the report
+    if (report.reportType === 'tasks') {
+      const tasks = await Task.find()
+        .populate('assignee', 'name')
+        .lean();
+        
+      data = tasks;
+      title = 'Task Report';
+    } else if (report.reportType === 'project' && report.projectId) {
+      const project = await Project.findById(report.projectId).lean();
       
-      // Log the report generation
-      const log = new ReportLog({
-        userId: report.userId._id,
-        type: report.reportType,
-        format: report.format,
-        projectId: report.projectId,
-        scheduledReportId: report._id,
-        recipients,
-        status: 'success'
-      });
+      if (!project) {
+        throw new Error(`Project not found with ID: ${report.projectId}`);
+      }
       
-      await log.save();
+      const tasks = await Task.find({ projectId: report.projectId })
+        .populate('assignee', 'name')
+        .lean();
+        
+      data = { project, tasks };
+      title = `Project: ${project.name}`;
+    } else if (report.reportType === 'analytics') {
+      // Get analytics data
+      const analyticsData = await getAnalytics(report.userId._id);
+      data = analyticsData;
+      title = 'Analytics Report';
+    } else {
+      throw new Error(`Unsupported report type: ${report.reportType}`);
     }
+    
+    // Generate the report
+    const reportFile = await generateReport(report.format, report.reportType, data, title);
+    
+    // Send email if recipients are specified
+    if (report.emailRecipients) {
+      const recipients = report.emailRecipients.split(',').map(email => email.trim());
+      
+      if (recipients.length > 0) {
+        await sendReportEmail({
+          recipients,
+          reportType: report.reportType,
+          format: report.format,
+          title,
+          data,
+          senderName: report.userId.name,
+          attachmentPath: reportFile
+        });
+        
+        // Log the report generation
+        const log = new ReportLog({
+          userId: report.userId._id,
+          type: report.reportType,
+          format: report.format,
+          projectId: report.projectId,
+          scheduledReportId: report._id,
+          recipients,
+          status: 'success'
+        });
+        
+        await log.save();
+      }
+    }
+    
+    return reportFile;
+  } catch (error) {
+    console.error('Error processing report:', error);
+    throw error;
   }
 };
 
