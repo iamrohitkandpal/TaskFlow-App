@@ -10,19 +10,24 @@ import { useDispatch, useSelector } from "react-redux";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import { Fragment, useEffect, useRef } from "react";
-import { checkAuth, setIsSidebarOpen } from "./redux/slices/authSlice";
+import { setIsSidebarOpen, setCredentials, logout } from "./redux/slices/authSlice";
 import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
 import Settings from "./pages/Settings";
 import { initializeSocket, disconnectSocket } from "./services/socketService";
-import Reports from './pages/Reports';
-import ErrorBoundary from './components/ErrorBoundary';
+import Reports from "./pages/Reports";
+import ErrorBoundary from "./components/ErrorBoundary";
+import PrivateRoute from "./components/PrivateRoute";
+import IntegrationsSettings from "./pages/IntegrationsSettings";
+import OAuthCallback from "./components/integrations/OAuthCallback";
+import ProjectTimeline from "./pages/ProjectTimeline";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function Layout() {
   const location = useLocation();
-
-  const {user} = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
   return user ? (
     <div className="w-full h-screen flex flex-col md:flex-row">
@@ -63,8 +68,9 @@ const MobileSidebar = () => {
       leaveTo="opacity-0 -translate-x-full"
     >
       <div
-        ref={(node) => (mobileMenuRef.current = node)}
+        ref={mobileMenuRef}
         className="fixed inset-0 z-50 md:hidden bg-black/40"
+        onClick={closeSidebar}
       >
         <div
           className="relative bg-white w-3/4 h-screen transform transition-transform duration-300 ease-in-out"
@@ -72,7 +78,7 @@ const MobileSidebar = () => {
         >
           <div className="w-full flex justify-end px-5 py-0">
             <button
-              onClick={() => closeSidebar()}
+              onClick={closeSidebar}
               className="absolute flex justify-end items-center mt-6"
             >
               <IoClose size={25} />
@@ -92,15 +98,40 @@ function App() {
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Only check authentication if there's user data in localStorage
-    const userInfo = localStorage.getItem("userInfo");
-    if (userInfo) {
-      checkAuth(dispatch);
-    }
-    
-    // Initialize socket only when userId is available, not just when object exists
-    if (user?.userId) {
-      initializeSocket(user.userId);
+    try {
+      // Check for auth token in localStorage
+      const token = localStorage.getItem('token');
+      const userInfo = localStorage.getItem('userInfo');
+      
+      if (token && userInfo) {
+        const parsedUser = JSON.parse(userInfo);
+        
+        // Dispatch action to set credentials in Redux store
+        dispatch(setCredentials({
+          token,
+          user: parsedUser
+        }));
+        
+        // Add a validation request to check if the token is still valid
+        fetch(`${API_BASE_URL}/users/validate-token`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }).catch(() => {
+          // If token validation fails, log the user out
+          dispatch(logout());
+        });
+      }
+      
+      // Initialize socket only when userId is available
+      if (user?.userId || user?._id) {
+        initializeSocket(user.userId || user._id);
+      }
+    } catch (error) {
+      console.error('Error in auth check:', error);
+      // Clear potentially corrupted storage data
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
     }
     
     return () => {

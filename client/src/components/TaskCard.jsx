@@ -23,7 +23,6 @@ const ICONS = {
 function TaskCard({ task }) {
   const { user } = useSelector((state) => state.auth);
   const [open, setOpen] = useState(false);
-  // console.log(task);
 
   return (
     <>
