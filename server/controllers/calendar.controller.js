@@ -1,5 +1,5 @@
 import ical from 'ical-generator';
-import { createClient } from 'node-caldav';
+import axios from 'axios';
 import Task from '../models/task.model.js';
 import User from '../models/user.model.js';
 
@@ -25,30 +25,39 @@ export const connectCalDAV = async (req, res) => {
       });
     }
 
-    // Test connection to CalDAV server
+    // Test connection to CalDAV server with a simple request
     try {
-      const client = createClient({
-        server: url,
-        credentials: {
-          username,
-          password
-        }
+      const auth = Buffer.from(`${username}:${password}`).toString('base64');
+      
+      // Attempt to access the server with PROPFIND
+      const response = await axios({
+        method: 'PROPFIND',
+        url: url,
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Depth': '1',
+          'Content-Type': 'application/xml'
+        },
+        validateStatus: status => status < 500
       });
 
-      // Try to fetch calendars to verify credentials
-      const calendars = await client.getCalendars();
+      if (response.status >= 400) {
+        return res.status(400).json({
+          status: false,
+          message: 'Failed to connect to CalDAV server. Check credentials and URL.'
+        });
+      }
       
-      // Store CalDAV details encrypted in user document
+      // Store CalDAV details in user document
       user.calendar = {
         type: 'caldav',
         url,
         username,
-        // In production, encrypt the password
-        password,
-        calendars: calendars.map(cal => ({
-          id: cal.url,
-          name: cal.displayName || 'Calendar'
-        }))
+        password, // In production, encrypt this
+        calendars: [{
+          id: url,
+          name: 'Default Calendar'
+        }]
       };
       
       await user.save();

@@ -4,7 +4,7 @@ import Project from '../models/project.model.js';
 import Task from '../models/task.model.js';
 import User from '../models/user.model.js';
 import moment from 'moment';
-import { getAnalytics } from './analytics.controller.js';
+import { getAnalyticsData } from './analytics.controller.js';
 import { sendReportEmail } from '../services/email.service.js';
 
 // Log a report generation
@@ -258,7 +258,7 @@ const processReport = async (report) => {
       title = `Project: ${project.name}`;
     } else if (report.reportType === 'analytics') {
       // Get analytics data
-      const analyticsData = await getAnalytics(report.userId._id);
+      const analyticsData = await getAnalyticsData(report.userId._id);
       data = analyticsData;
       title = 'Analytics Report';
     } else {
