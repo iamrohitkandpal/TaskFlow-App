@@ -1,6 +1,12 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
+// If expressJwt is used elsewhere, keep it, otherwise remove
+import expressJwt from 'express-jwt';
 
+/**
+ * Middleware to protect routes requiring authentication
+ * Verifies JWT token from cookies and attaches user info to request
+ */
 const protectedRoute = async (req, res, next) => {
   try {
     let token = req.cookies?.token;
@@ -10,7 +16,6 @@ const protectedRoute = async (req, res, next) => {
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Fix: Use decoded.userId instead of decoded.id
         const result = await User.findById(decoded.userId).select(
           "isAdmin email"
         );
@@ -27,9 +32,9 @@ const protectedRoute = async (req, res, next) => {
           email: result.email,
         };
 
-        next();
+        return next();
       } catch (error) {
-        console.log("Token verification error:", error.message);
+        console.error("Token verification error:", error.message);
         return res
           .status(401)
           .json({ status: false, message: "Not Authorized, Invalid Token" });
@@ -40,31 +45,40 @@ const protectedRoute = async (req, res, next) => {
         .json({ status: false, message: "Not Authorized, Login Again" });
     }
   } catch (error) {
-    console.log("Error in protectedRoute middleware:", error.message);
+    console.error("Error in protectedRoute middleware:", error.message);
     return res
       .status(401)
       .json({ status: false, message: "Not Authorized, Login Again" });
   }
 };
 
+/**
+ * Middleware to restrict routes to admin users only
+ * Requires protectedRoute middleware to run first
+ */
 const isAdminRoute = async (req, res, next) => {
   try {
     if (req.user && req.user.isAdmin) {
-      next();
+      return next();
+    } else {
+      return res
+        .status(403)
+        .json({ status: false, message: "Not Authorized, Admin Only" });
     }
   } catch (error) {
+    console.error("Error in isAdminRoute middleware:", error);
     return res
-      .status(401)
-      .json({ status: false, message: "Not Authorized, Admin Only" });
+      .status(500)
+      .json({ status: false, message: "Server Error" });
   }
 };
 
-export { protectedRoute, isAdminRoute };
-
-import jwt from 'express-jwt';
-import User from '../models/user.model.js';
-
-export const checkRole = (roles) => {
+/**
+ * Middleware to check if user has required role(s)
+ * @param {Array<string>} roles - Array of roles allowed to access the route
+ * @returns {Function} Express middleware function
+ */
+const checkRole = (roles) => {
   return async (req, res, next) => {
     try {
       const user = await User.findById(req.user.userId);
@@ -76,13 +90,16 @@ export const checkRole = (roles) => {
         });
       }
       
-      next();
+      return next();
     } catch (error) {
       console.error('Error in checkRole middleware:', error);
-      res.status(500).json({
+      return res.status(500).json({
         status: false,
         message: 'Server error'
       });
     }
   };
 };
+
+// Export all middleware functions together
+export { protectedRoute, isAdminRoute, checkRole };
