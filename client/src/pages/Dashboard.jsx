@@ -170,12 +170,22 @@ const ActivityItem = ({ user, action, task, time }) => (
 );
 
 const Dashboard = () => {
-  const { data, isLoading } = useGetDashboardStatsQuery();
+  const { data, isLoading, error } = useGetDashboardStatsQuery();
 
   if (isLoading) return <Loader />;
+  
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-600 mb-2">Error loading dashboard data</p>
+        <p className="text-sm text-gray-600">{error.message || "Please try again later"}</p>
+      </div>
+    );
+  }
 
-  const totals = data?.tasks;
-
+  const totals = data?.tasks || {};
+  const fallbackStats = { completed: 0, "in progress": 0, todo: 0 };
+  
   const stats = [
     {
       _id: "1",
@@ -186,24 +196,24 @@ const Dashboard = () => {
     },
     {
       _id: "2",
-      label: "COMPLTED TASK",
-      total: totals["completed"] || 0,
+      label: "COMPLETED TASK",
+      total: totals["completed"] || fallbackStats.completed,
       icon: <MdAdminPanelSettings />,
       bg: "bg-[#0f766e]",
     },
     {
       _id: "3",
       label: "IN PROGRESS",
-      total: totals["in progress"] || 0,
+      total: totals["in progress"] || fallbackStats["in progress"],
       icon: <LuClipboardPen />,
       bg: "bg-[#f59e0b]",
     },
     {
       _id: "4",
       label: "TODOS",
-      total: totals["todo"],
+      total: totals["todo"] || fallbackStats.todo,
       icon: <FaArrowsToDot />,
-      bg: "bg-[#be185d]" || 0,
+      bg: "bg-[#be185d]",
     },
   ];
 
@@ -241,7 +251,7 @@ const Dashboard = () => {
           <div className="bg-white p-4 rounded-md shadow-sm">
             <h4 className="text-lg font-semibold mb-2">Task Status</h4>
             <div className="h-[300px]">
-              <Chart data={data?.stats} />
+              <Chart data={data?.stats || []} />
             </div>
           </div>
           

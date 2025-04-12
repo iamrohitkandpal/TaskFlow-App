@@ -18,7 +18,7 @@ import { useGetTeamListQuery } from "../../redux/slices/api/userApiSlice";
 import { useEstimateEffortForNewTaskMutation } from '../../redux/slices/api/aiApiSlice';
 import RichTextEditor from '../editors/RichTextEditor';
 import { useDispatch } from 'react-redux';
-import { apiSlice } from '../../redux/slices/api/apiSlice';
+import { apiSlice } from "../../redux/slices/apiSlice";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORITY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];

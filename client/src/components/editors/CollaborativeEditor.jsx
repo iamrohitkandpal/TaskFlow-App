@@ -1,38 +1,53 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { Editor, EditorState, ContentState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js';
-import 'draft-js/dist/Draft.css';
-import socket from '../../services/socketService';
-import { toast } from 'sonner';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import TextAlign from '@tiptap/extension-text-align';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Image from '@tiptap/extension-image';
 import { Box, Paper, Typography, Divider, Avatar, Chip } from '@mui/material';
 import { API_BASE_URL } from '../../config/constants';
 import axios from 'axios';
+import socket from '../../services/socketService';
+import { toast } from 'sonner';
 
 const CollaborativeEditor = ({ taskId, initialContent, readOnly = false }) => {
-  const [editorState, setEditorState] = useState(() => {
-    if (initialContent) {
-      try {
-        // Try to parse it as raw JSON content
-        const content = JSON.parse(initialContent);
-        return EditorState.createWithContent(convertFromRaw(content));
-      } catch (e) {
-        // If parsing fails, treat it as plain text
-        return EditorState.createWithContent(ContentState.createFromText(initialContent));
-      }
-    }
-    return EditorState.createEmpty();
-  });
-  
   const [collaborators, setCollaborators] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const editorRef = useRef(null);
   const user = useSelector(state => state.auth.user);
   const { token } = useSelector(state => state.auth);
   
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      TaskList,
+      TaskItem,
+      Image
+    ],
+    editable: !readOnly,
+    content: initialContent || '<p>Enter task description...</p>',
+    onUpdate: ({ editor }) => {
+      if (isConnected && !readOnly) {
+        const content = editor.getHTML();
+        
+        // Broadcast changes to other users
+        socket.emit('document-change', {
+          documentId: taskId,
+          content,
+          userId: user?._id
+        });
+      }
+    }
+  });
+  
   // Connect to socket room when component mounts
   useEffect(() => {
-    if (!taskId || !user?._id || readOnly) return;
+    if (!taskId || !user?._id || readOnly || !editor) return;
     
     // Join collaborative session
     socket.emit('join-document', {
@@ -45,10 +60,12 @@ const CollaborativeEditor = ({ taskId, initialContent, readOnly = false }) => {
     
     // Listen for document changes from other users
     socket.on('document-change', (data) => {
-      if (data.userId !== user._id) {
+      if (data.userId !== user._id && editor) {
         try {
-          const contentState = convertFromRaw(data.content);
-          setEditorState(EditorState.createWithContent(contentState));
+          // Need to disable onUpdate temporarily to prevent infinite loops
+          const currentSelection = editor.state.selection;
+          editor.commands.setContent(data.content, false);
+          editor.commands.setTextSelection(currentSelection);
         } catch (err) {
           console.error('Error applying remote changes:', err);
         }
@@ -65,54 +82,19 @@ const CollaborativeEditor = ({ taskId, initialContent, readOnly = false }) => {
       socket.off('document-change');
       socket.off('collaborator-update');
     };
-  }, [taskId, user, readOnly]);
-  
-  // Broadcast changes when user types
-  const onChange = (newState) => {
-    setEditorState(newState);
-    
-    if (isConnected && !readOnly) {
-      const contentState = newState.getCurrentContent();
-      const rawContent = convertToRaw(contentState);
-      
-      // Broadcast changes to other users
-      socket.emit('document-change', {
-        documentId: taskId,
-        content: rawContent,
-        userId: user?._id
-      });
-    }
-  };
-  
-  // Handle keyboard shortcuts
-  const handleKeyCommand = (command) => {
-    const newState = RichUtils.handleKeyCommand(editorState, command);
-    if (newState) {
-      onChange(newState);
-      return 'handled';
-    }
-    return 'not-handled';
-  };
-  
-  // Focus the editor when clicking on the container
-  const focusEditor = () => {
-    if (editorRef.current && !readOnly) {
-      editorRef.current.focus();
-    }
-  };
+  }, [taskId, user, readOnly, editor]);
   
   // Save content to server
   const saveContent = async () => {
-    if (readOnly) return;
+    if (readOnly || !editor) return;
     
     try {
       setIsSaving(true);
-      const contentState = editorState.getCurrentContent();
-      const rawContent = JSON.stringify(convertToRaw(contentState));
+      const content = editor.getHTML();
       
       await axios.patch(
-        `${API_BASE_URL}/tasks/${taskId}/description`, 
-        { description: rawContent },
+        `${API_BASE_URL}/tasks/${taskId}/description`,
+        { description: content },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -144,19 +126,8 @@ const CollaborativeEditor = ({ taskId, initialContent, readOnly = false }) => {
         </Box>
       )}
       
-      <div 
-        onClick={focusEditor}
-        className={`editor-container ${readOnly ? 'read-only' : ''}`}
-        style={{ minHeight: '150px' }}
-      >
-        <Editor
-          ref={editorRef}
-          editorState={editorState}
-          onChange={onChange}
-          handleKeyCommand={handleKeyCommand}
-          placeholder="Enter task description..."
-          readOnly={readOnly}
-        />
+      <div className={`editor-container ${readOnly ? 'read-only' : ''}`}>
+        <EditorContent editor={editor} />
       </div>
       
       {!readOnly && (
