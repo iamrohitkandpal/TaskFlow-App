@@ -10,6 +10,7 @@ import {
   postTaskActivity,
   trashTask,
   updateTask,
+  checkUserWipLimit // Add this import
 } from "../controllers/task.controller.js";
 import { isAdminRoute, protectedRoute } from "../middlewares/auth.middleware.js";
 import { checkWipLimit } from '../controllers/user-settings.controller.js';

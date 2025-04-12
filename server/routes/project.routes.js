@@ -1,6 +1,6 @@
 import express from 'express';
 import { checkRole } from '../middlewares/auth.middleware.js';
-import { checkAuth } from '../middlewares/auth.middleware.js';
+import { protectedRoute } from '../middlewares/auth.middleware.js';
 import {
   getProjectAutomationRules,
   createProjectAutomationRule,
@@ -18,7 +18,7 @@ router.put('/:projectId/automation-rules/:ruleId', checkRole(['Admin', 'Manager'
 router.delete('/:projectId/automation-rules/:ruleId', checkRole(['Admin', 'Manager']), deleteProjectAutomationRule);
 
 // Add these routes to your project routes
-router.get('/:projectId/dependencies', checkAuth, getProjectDependencies);
-router.get('/:projectId/critical-path', checkAuth, getProjectCriticalPath);
+router.get('/:projectId/dependencies', protectedRoute, getProjectDependencies);
+router.get('/:projectId/critical-path', protectedRoute, getProjectCriticalPath);
 
 export default router;

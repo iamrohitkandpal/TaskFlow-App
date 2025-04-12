@@ -1,6 +1,6 @@
 import express from 'express';
 import { 
-  searchTasks, 
+  searchTasksController, // Changed from searchTasks to searchTasksController
   saveSearchFilter, 
   getSavedFilters, 
   deleteSavedFilter 
@@ -8,7 +8,7 @@ import {
 
 const router = express.Router();
 
-router.get('/tasks', searchTasks);
+router.get('/tasks', searchTasksController); // Use searchTasksController here
 router.post('/filters', saveSearchFilter);
 router.get('/filters', getSavedFilters);
 router.delete('/filters/:filterId', deleteSavedFilter);

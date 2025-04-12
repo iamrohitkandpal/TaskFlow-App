@@ -6,15 +6,15 @@ import {
   deleteScheduledReport,
   getReportLogs
 } from '../controllers/report.controller.js';
-import { checkAuth } from '../middleware/auth.middleware.js';
+import { protectedRoute } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 // Report routes
-router.post('/log', checkAuth, logReport);
-router.post('/schedule', checkAuth, scheduleReport);
-router.get('/scheduled', checkAuth, getScheduledReports);
-router.delete('/scheduled/:reportId', checkAuth, deleteScheduledReport);
-router.get('/logs', checkAuth, getReportLogs);
+router.post('/log', protectedRoute, logReport);
+router.post('/schedule', protectedRoute, scheduleReport);
+router.get('/scheduled', protectedRoute, getScheduledReports);
+router.delete('/scheduled/:reportId', protectedRoute, deleteScheduledReport);
+router.get('/logs', protectedRoute, getReportLogs);
 
 export default router;

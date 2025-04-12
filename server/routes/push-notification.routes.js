@@ -4,12 +4,12 @@ import {
   getVapidPublicKey,
   testPushNotification
 } from '../controllers/push-notification.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
+import { protectedRoute } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.post('/subscribe', authenticateToken, savePushSubscription);
+router.post('/subscribe', protectedRoute, savePushSubscription);
 router.get('/vapid-public-key', getVapidPublicKey);
-router.post('/test', authenticateToken, testPushNotification);
+router.post('/test', protectedRoute, testPushNotification);
 
 export default router;
