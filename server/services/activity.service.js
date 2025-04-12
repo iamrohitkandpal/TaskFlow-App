@@ -68,3 +68,21 @@ export const getRecentActivities = async (limit = 20) => {
     throw error;
   }
 };
+
+export const getActivities = async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const activities = await getRecentActivities(parseInt(limit));
+    
+    res.status(200).json({
+      status: true,
+      activities
+    });
+  } catch (error) {
+    console.error("Error in getActivities controller:", error);
+    res.status(500).json({
+      status: false,
+      message: "Server error. Please try again later."
+    });
+  }
+};

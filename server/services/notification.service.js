@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { WebhookClient } from 'webhook-discord';
+import pkg from 'webhook-discord';
+const { WebhookClient } = pkg;
 import User from '../models/user.model.js';
 import Project from '../models/project.model.js';
 

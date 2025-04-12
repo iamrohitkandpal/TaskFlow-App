@@ -1,10 +1,8 @@
 import fetch from 'node-fetch';
-import { pipeline } from '@huggingface/inference';
+import { HfInference } from '@huggingface/inference';
 
-// Use Hugging Face's free API for summarization
-// Note: This uses the Hugging Face Inference API which has a free tier
-// For production, you might want to deploy your own model with transformers.js
 const hfApiKey = process.env.HUGGINGFACE_API_KEY || '';
+const inference = new HfInference(hfApiKey);
 
 /**
  * Summarize text using Hugging Face's summarization pipeline
@@ -25,28 +23,17 @@ export const summarizeText = async (text, maxLength = 100) => {
       return `${text.substring(0, maxLength)}...`;
     }
     
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/facebook/bart-large-cnn',
-      {
-        headers: { Authorization: `Bearer ${hfApiKey}` },
-        method: 'POST',
-        body: JSON.stringify({
-          inputs: text,
-          parameters: {
-            max_length: maxLength,
-            min_length: Math.min(30, maxLength / 2)
-          }
-        }),
+    // Use the client library
+    const result = await inference.summarization({
+      model: 'facebook/bart-large-cnn',
+      inputs: text,
+      parameters: {
+        max_length: maxLength,
+        min_length: Math.min(30, maxLength / 2)
       }
-    );
+    });
     
-    const result = await response.json();
-    
-    if (Array.isArray(result) && result.length > 0) {
-      return result[0].summary_text;
-    }
-    
-    return text.substring(0, maxLength) + '...';
+    return result.summary_text;
   } catch (error) {
     console.error('Error in summarizeText:', error);
     // Fallback to a simple truncation
