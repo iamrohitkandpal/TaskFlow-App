@@ -1,6 +1,150 @@
+import Project from '../models/project.model.js';
+import Task from '../models/task.model.js';
 import { calculateCriticalPath } from '../services/critical-path.service.js';
 
-// Add these methods to your project controller
+// Add this missing function
+export const createProject = async (req, res) => {
+  try {
+    const { name, description, startDate, endDate, members } = req.body;
+    const { userId } = req.user;
+    
+    // Create new project
+    const project = new Project({
+      name,
+      description,
+      startDate: startDate || new Date(),
+      endDate,
+      members: [...new Set([userId, ...(members || [])])], // Ensure unique members with owner included
+      owner: userId
+    });
+    
+    await project.save();
+    
+    res.status(201).json({
+      status: true,
+      message: 'Project created successfully',
+      project
+    });
+  } catch (error) {
+    console.error('Error in createProject:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while creating project'
+    });
+  }
+};
+
+// Get all projects
+export const getProjects = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    
+    // Admin can see all projects, normal users only see their projects
+    const query = role === 'Admin' ? {} : { members: userId };
+    
+    const projects = await Project.find(query)
+      .populate('owner', 'name email')
+      .sort({ updatedAt: -1 });
+    
+    res.status(200).json({
+      status: true,
+      projects
+    });
+  } catch (error) {
+    console.error('Error in getProjects:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while fetching projects'
+    });
+  }
+};
+
+// Get a single project
+export const getProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.user;
+    
+    // Find the project
+    const project = await Project.findById(projectId)
+      .populate('owner', 'name email')
+      .populate('members', 'name email');
+    
+    if (!project) {
+      return res.status(404).json({
+        status: false,
+        message: 'Project not found'
+      });
+    }
+    
+    // Check if user has access
+    if (role !== 'Admin' && !project.members.some(member => member._id.toString() === userId)) {
+      return res.status(403).json({
+        status: false,
+        message: 'You do not have access to this project'
+      });
+    }
+    
+    res.status(200).json({
+      status: true,
+      project
+    });
+  } catch (error) {
+    console.error('Error in getProject:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while fetching project'
+    });
+  }
+};
+
+// Update project
+export const updateProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.user;
+    const updates = req.body;
+    
+    // Find the project
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      return res.status(404).json({
+        status: false,
+        message: 'Project not found'
+      });
+    }
+    
+    // Check if user has permission to update
+    if (role !== 'Admin' && project.owner.toString() !== userId) {
+      return res.status(403).json({
+        status: false,
+        message: 'You do not have permission to update this project'
+      });
+    }
+    
+    // Apply updates
+    Object.keys(updates).forEach(key => {
+      if (key !== '_id' && key !== 'owner') {
+        project[key] = updates[key];
+      }
+    });
+    
+    await project.save();
+    
+    res.status(200).json({
+      status: true,
+      message: 'Project updated successfully',
+      project
+    });
+  } catch (error) {
+    console.error('Error in updateProject:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while updating project'
+    });
+  }
+};
 
 // Get all dependencies for a project
 export const getProjectDependencies = async (req, res) => {
@@ -49,6 +193,55 @@ export const getProjectDependencies = async (req, res) => {
     res.status(500).json({
       status: false,
       message: 'Server error while fetching dependencies'
+    });
+  }
+};
+
+// Get all tasks for a project
+export const getProjectTasks = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.user;
+    const { includeDependencies } = req.query;
+    
+    // Check if user has access to this project
+    const project = await Project.findOne({
+      _id: projectId,
+      $or: [
+        { owner: userId },
+        { members: userId }
+      ]
+    });
+    
+    if (!project && role !== 'Admin') {
+      return res.status(403).json({
+        status: false,
+        message: 'You do not have access to this project'
+      });
+    }
+    
+    // Find all tasks for this project
+    let query = Task.find({ projectId, isTrashed: false });
+    
+    // If includeDependencies is true, populate the dependencies field
+    if (includeDependencies === 'true') {
+      query = query.populate('dependencies', 'title stage priority dueDate');
+    }
+    
+    const tasks = await query
+      .populate('assignee', 'name email')
+      .populate('team', 'name email')
+      .sort({ createdAt: -1 });
+    
+    res.status(200).json({
+      status: true,
+      tasks
+    });
+  } catch (error) {
+    console.error('Error in getProjectTasks:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while fetching project tasks'
     });
   }
 };
@@ -146,6 +339,53 @@ export const getProjectCriticalPath = async (req, res) => {
     res.status(500).json({
       status: false,
       message: 'Server error while calculating critical path'
+    });
+  }
+};
+
+// Add this function alongside your other project controller functions
+
+/**
+ * Delete a project and its related data
+ */
+export const deleteProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.user;
+    
+    // Find the project first to check ownership
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      return res.status(404).json({
+        status: false,
+        message: 'Project not found'
+      });
+    }
+    
+    // Check if user is authorized to delete (either project owner or admin)
+    if (project.owner.toString() !== userId && role !== 'Admin') {
+      return res.status(403).json({
+        status: false,
+        message: 'You are not authorized to delete this project'
+      });
+    }
+    
+    // Delete all tasks associated with this project
+    await Task.deleteMany({ projectId });
+    
+    // Delete the project itself
+    await Project.findByIdAndDelete(projectId);
+    
+    res.status(200).json({
+      status: true,
+      message: 'Project deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in deleteProject:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Server error while deleting project'
     });
   }
 };

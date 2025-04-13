@@ -65,33 +65,24 @@ export const updateUserSettings = async (req, res) => {
   }
 };
 
-// Middleware to check WIP limits before assigning tasks
+// Export the middleware properly
 export const checkWipLimit = async (req, res, next) => {
   try {
-    const taskData = req.body;
-    
-    // Skip check if no assignee or if it's a task update rather than creation
-    if (!taskData.assignee || req.method !== 'POST') {
-      return next();
-    }
-    
-    const assigneeId = taskData.assignee;
+    const { userId } = req.user;
     
     // Get user's WIP limit setting
-    const userSettings = await UserSettings.findOne({ userId: assigneeId });
+    const userSettings = await UserSettings.findOne({ userId });
+    const wipLimit = userSettings?.wipLimit || 3; // Default to 3 if not set
     
-    // Use default limit of 5 if no settings found
-    const wipLimit = userSettings?.wipLimit || 5;
-    
-    // Count current in-progress tasks for this user
-    const tasksInProgress = await Task.countDocuments({
-      assignee: assigneeId,
+    // Count tasks currently in progress for the user
+    const tasksInProgressCount = await Task.countDocuments({
+      assignee: userId,
       stage: 'in-progress',
       isTrashed: false
     });
     
-    // If user is at or above limit, prevent assignment
-    if (tasksInProgress >= wipLimit) {
+    // Check if limit would be exceeded
+    if (tasksInProgressCount >= wipLimit) {
       return res.status(409).json({
         status: false,
         message: `Cannot assign task. User has reached their work-in-progress limit of ${wipLimit} tasks.`

@@ -1,91 +1,89 @@
 import User from "../models/user.model.js";
 import Notice from "../models/notification.model.js";
 import { createJWT } from "../utils/connectDB.utils.js";
+import { asyncHandler, ensureUserId, safeQuery, validateId } from '../utils/controllerUtils.js';
 
-// Controller: Register User
-export const registerUser = async (req, res) => {
-  try {
-    const { name, email, password, isAdmin, role, title } = req.body;
+export const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, password, isAdmin, role, title } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        status: false,
-        message: "Name, email, and password are required.",
-      });
-    }
+  if (!name || !email || !password) {
+    const error = new Error('Name, email, and password are required.');
+    error.statusCode = 400;
+    throw error;
+  }
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res
-        .status(400)
-        .json({ status: false, message: "User already exists." });
-    }
+  const userExists = await safeQuery(
+    () => User.findOne({ email }),
+    'Failed to check if user exists'
+  );
+  
+  if (userExists) {
+    const error = new Error('User already exists.');
+    error.statusCode = 400;
+    throw error;
+  }
 
-    const user = await User.create({
+  const user = await safeQuery(
+    () => User.create({
       name,
       email,
       password,
       isAdmin,
       role,
       title,
+    }),
+    'Failed to create user'
+  );
+
+  if (user) {
+    if (isAdmin) createJWT(res, user._id);
+    user.password = undefined;
+
+    return res.status(201).json({
+      status: true,
+      message: "User registered successfully.",
+      user,
     });
-
-    if (user) {
-      if (isAdmin) createJWT(res, user._id);
-
-      user.password = undefined;
-
-      return res.status(201).json({
-        status: true,
-        message: "User registered successfully.",
-        user,
-      });
-    }
-
-    res.status(400).json({ status: false, message: "Invalid user data." });
-  } catch (error) {
-    console.error("Error in registerUser controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
   }
-};
 
-// Controller: Login User
-export const loginUser = async (req, res) => {
+  const error = new Error('Invalid user data.');
+  error.statusCode = 400;
+  throw error;
+});
+
+export const loginUser = asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ status: false, message: "Email and password are required." });
+      return res.status(400).json({
+        status: false,
+        message: 'Email and password are required.'
+      });
     }
 
     const user = await User.findOne({ email });
+    
     if (!user) {
-      return res
-        .status(401)
-        .json({ status: false, message: "Invalid email or password." });
+      return res.status(401).json({
+        status: false,
+        message: 'Invalid email or password.'
+      });
     }
 
     if (!user.isActive) {
-      return res
-        .status(403)
-        .json({
-          status: false,
-          message: "User is deactivated. Contact admin.",
-        });
+      return res.status(403).json({
+        status: false,
+        message: 'User is deactivated. Contact admin.'
+      });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({ status: false, message: "Invalid email or password." });
+      return res.status(401).json({
+        status: false,
+        message: 'Invalid email or password.'
+      });
     }
 
     createJWT(res, user._id);
@@ -97,286 +95,245 @@ export const loginUser = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("Error in loginUser controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
-  }
-};
-
-// Controller: Logout User
-export const logoutUser = (req, res) => {
-  try {
-    // Only clear the authentication token cookie
-    res.cookie("token", "", {
-      httpOnly: true,
-      expires: new Date(0),
-      sameSite: "Strict",
-      secure: process.env.NODE_ENV === "production",
+    console.error("Login error:", error);
+    res.status(500).json({
+      status: false,
+      message: error.message || "An error occurred during login"
     });
-
-    res.status(200).json({ status: true, message: "Logged out successfully." });
-  } catch (error) {
-    console.error("Error in logoutUser controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
   }
-};
+});
 
-// Controller: Get Team List
-export const getTeamList = async (req, res) => {
+export const logoutUser = asyncHandler(async (req, res) => {
+  res.cookie("token", "", {
+    httpOnly: true,
+    expires: new Date(0),
+    sameSite: "Strict",
+    secure: process.env.NODE_ENV === "production",
+  });
+
+  res.status(200).json({ status: true, message: "Logged out successfully." });
+});
+
+export const getTeamList = asyncHandler(async (req, res) => {
+  const users = await safeQuery(
+    () => User.find({ isActive: true }).select("name email role title isActive"),
+    'Failed to fetch team list'
+  );
+
+  res.status(200).json({
+    status: true,
+    message: "Team list fetched successfully.",
+    users,
+  });
+});
+
+export const getNotificationsList = asyncHandler(async (req, res) => {
+  const userId = ensureUserId(req);
+  
+  // Add additional logging
+  console.log(`Fetching notifications for user: ${userId}`);
+  
   try {
-    // Only return active users for task assignment
-    const users = await User.find({ isActive: true }).select("name email role title isActive");
-
-    res.status(200).json({
-      status: true,
-      message: "Team list fetched successfully.",
-      users,
-    });
-  } catch (error) {
-    console.error("Error in getTeamList controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
-  }
-};
-
-// Controller: Get Notifications List
-export const getNotificationsList = async (req, res) => {
-  try {
-    const { userId } = req.user;
-
+    // First check if the user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    // Then query notifications with more fault-tolerance
     const notices = await Notice.find({
       team: userId,
       isRead: { $nin: [userId] },
-    }).populate("task", "title");
-
+    }).populate("task", "title").lean();
+    
     res.status(200).json({
       status: true,
       message: "Notifications fetched successfully.",
-      notices,
+      notices: notices || []
     });
   } catch (error) {
-    console.error("Error in getNotificationsList controller:", error.stack);
-    res
-      .status(500)
-      .json({
+    console.error(`Notification fetch error: ${error.message}`, error);
+    if (error.name === 'CastError') {
+      // Handle invalid MongoDB ID
+      res.status(400).json({
         status: false,
-        message: "Server error. Please try again later.",
+        message: "Invalid user ID format"
       });
-  }
-};
-
-// Controller: Update User Profile
-export const updateUserProfile = async (req, res) => {
-  try {
-    const { userId, isAdmin } = req.user;
-    const { _id } = req.body;
-
-    const id = isAdmin && userId === _id ? userId : isAdmin ? _id : userId;
-
-    const user = await User.findById(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ status: false, message: "User not found." });
+    } else {
+      res.status(500).json({
+        status: false,
+        message: "Server error while fetching notifications",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
-
-    user.name = req.body.name || user.name;
-    user.role = req.body.role || user.role;
-    user.title = req.body.title || user.title;
-
-    const updatedUser = await user.save();
-    user.password = undefined;
-
-    res.status(200).json({
-      status: true,
-      message: "User profile updated successfully.",
-      user: updatedUser,
-    });
-  } catch (error) {
-    console.error("Error in updateUserProfile controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
   }
-};
+});
 
-// Controller: Mark Notification as Read
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  const { userId, isAdmin } = req.user;
+  const { _id } = req.body;
 
-export const markNotificationRead = async (req, res) => {
-  try {
-    const { userId } = req.user;
-    const { isReadType, id } = req.query;
+  const id = isAdmin && userId === _id ? userId : isAdmin ? _id : userId;
 
-    if (isReadType === "all") {
-      await Notice.updateMany(
+  const user = await safeQuery(
+    () => User.findById(id),
+    'Failed to find user'
+  );
+  
+  if (!user) {
+    const error = new Error('User not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  user.name = req.body.name || user.name;
+  user.role = req.body.role || user.role;
+  user.title = req.body.title || user.title;
+
+  const updatedUser = await safeQuery(
+    () => user.save(),
+    'Failed to update user profile'
+  );
+  
+  user.password = undefined;
+
+  res.status(200).json({
+    status: true,
+    message: "User profile updated successfully.",
+    user: updatedUser,
+  });
+});
+
+export const markNotificationRead = asyncHandler(async (req, res) => {
+  const { userId } = req.user;
+  const { isReadType, id } = req.query;
+
+  if (isReadType === "all") {
+    await safeQuery(
+      () => Notice.updateMany(
         { team: userId, isRead: { $nin: [userId] } },
         { $push: { isRead: userId } }
-      );
-    } else {
-      await Notice.findOneAndUpdate(
+      ),
+      'Failed to mark all notifications as read'
+    );
+  } else {
+    await safeQuery(
+      () => Notice.findOneAndUpdate(
         { _id: id, isRead: { $nin: [userId] } },
         { $push: { isRead: userId } },
         { new: true }
-      );
-    }
-
-    res
-      .status(201)
-      .json({ status: true, message: "Done Read Notification" });
-  } catch (error) {
-    console.error("Error in markNotificationRead controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
+      ),
+      'Failed to mark notification as read'
+    );
   }
-};
 
-// Controller: Change User Password
-export const changeUserPassword = async (req, res) => {
-  try {
-    const { userId } = req.user;
+  res.status(201).json({ status: true, message: "Done Read Notification" });
+});
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ status: false, message: "User not found." });
-    }
+export const changeUserPassword = asyncHandler(async (req, res) => {
+  const { userId } = req.user;
 
-    user.password = req.body.password;
-    await user.save();
-
-    user.password = undefined;
-    res
-      .status(200)
-      .json({ status: true, message: "Password changed successfully." });
-  } catch (error) {
-    console.error("Error in changeUserPassword controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
+  const user = await safeQuery(
+    () => User.findById(userId),
+    'Failed to find user'
+  );
+  
+  if (!user) {
+    const error = new Error('User not found.');
+    error.statusCode = 404;
+    throw error;
   }
-};
 
-// Controller: Activate/Deactivate User Profile
-export const activateUserProfile = async (req, res) => {
-  try {
-    const { id } = req.params;
+  user.password = req.body.password;
+  await safeQuery(
+    () => user.save(),
+    'Failed to change user password'
+  );
 
-    const user = await User.findById(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ status: false, message: "User not found." });
-    }
+  user.password = undefined;
+  res.status(200).json({ status: true, message: "Password changed successfully." });
+});
 
-    user.isActive = req.body.isActive;
-    await user.save();
+export const activateUserProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    res.status(200).json({
-      status: true,
-      message: `User account has been ${
-        user.isActive ? "activated" : "disabled"
-      }.`,
-    });
-  } catch (error) {
-    console.error("Error in activateUserProfile controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
+  const user = await safeQuery(
+    () => User.findById(id),
+    'Failed to find user'
+  );
+  
+  if (!user) {
+    const error = new Error('User not found.');
+    error.statusCode = 404;
+    throw error;
   }
-};
 
-// Controller: Delete User Profile
-export const deleteUserProfile = async (req, res) => {
-  try {
-    const { id } = req.params;
+  user.isActive = req.body.isActive;
+  await safeQuery(
+    () => user.save(),
+    'Failed to activate/deactivate user profile'
+  );
 
-    const user = await User.findByIdAndDelete(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ status: false, message: "User not found." });
-    }
+  res.status(200).json({
+    status: true,
+    message: `User account has been ${user.isActive ? "activated" : "disabled"}.`,
+  });
+});
 
-    res.status(200).json({
-      status: true,
-      message: "User deleted successfully.",
-    });
-  } catch (error) {
-    console.error("Error in deleteUserProfile controller:", error.stack);
-    res
-      .status(500)
-      .json({
-        status: false,
-        message: "Server error. Please try again later.",
-      });
+export const deleteUserProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await safeQuery(
+    () => User.findByIdAndDelete(id),
+    'Failed to delete user profile'
+  );
+  
+  if (!user) {
+    const error = new Error('User not found.');
+    error.statusCode = 404;
+    throw error;
   }
-};
 
-export const updateUserSkills = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { skills } = req.body;
-    
-    // If userId is 'profile', use the current user's ID
-    const userIdToUpdate = userId === 'profile' ? req.user.userId : userId;
-    
-    // Check permissions - only allow users to update their own skills or admins to update anyone's
-    if (userIdToUpdate !== req.user.userId && !req.user.isAdmin) {
-      return res.status(403).json({
-        status: false,
-        message: 'You do not have permission to update this user\'s skills'
-      });
-    }
-    
-    const user = await User.findById(userIdToUpdate);
-    
-    if (!user) {
-      return res.status(404).json({
-        status: false,
-        message: 'User not found'
-      });
-    }
-    
-    user.skills = Array.isArray(skills) ? skills : [];
-    await user.save();
-    
-    res.status(200).json({
-      status: true,
-      message: 'Skills updated successfully',
-      skills: user.skills
-    });
-  } catch (error) {
-    console.error('Error in updateUserSkills:', error);
-    res.status(500).json({
-      status: false,
-      message: 'Server error'
-    });
+  res.status(200).json({
+    status: true,
+    message: "User deleted successfully.",
+  });
+});
+
+export const updateUserSkills = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { skills } = req.body;
+  
+  const userIdToUpdate = userId === 'profile' ? req.user.userId : userId;
+  
+  if (userIdToUpdate !== req.user.userId && !req.user.isAdmin) {
+    const error = new Error('You do not have permission to update this user\'s skills');
+    error.statusCode = 403;
+    throw error;
   }
-};
+  
+  const user = await safeQuery(
+    () => User.findById(userIdToUpdate),
+    'Failed to find user'
+  );
+  
+  if (!user) {
+    const error = new Error('User not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+  
+  user.skills = Array.isArray(skills) ? skills : [];
+  await safeQuery(
+    () => user.save(),
+    'Failed to update user skills'
+  );
+  
+  res.status(200).json({
+    status: true,
+    message: 'Skills updated successfully',
+    skills: user.skills
+  });
+});

@@ -1,74 +1,82 @@
 import User from "../models/user.model.js";
 import Task from "../models/task.model.js";
 import Notice from "../models/notification.model.js";
-import mongoose from "mongoose";
 import { io } from "../index.js";
 import { assignTaskBasedOnSkills } from '../services/assignment.service.js';
+import { asyncHandler, ensureUserId, safeQuery, validateId } from '../utils/controllerUtils.js';
 
-export const createTask = async (req, res) => {
-  try {
-    const taskData = req.body;
-    const newTask = new Task(taskData);
-    await newTask.save();
-    
-    // Assign the task based on skills
-    await assignTaskBasedOnSkills(newTask._id);
-    
-    res.status(201).json({
-      status: true,
-      message: 'Task created and assigned successfully',
-      task: newTask
-    });
-  } catch (error) {
-    console.error('Error in createTask:', error);
-    res.status(500).json({
-      status: false,
-      message: 'Server error while creating task'
-    });
+export const createTask = asyncHandler(async (req, res) => {
+  const userId = ensureUserId(req);
+  const taskData = req.body;
+  
+  // Validate required fields
+  if (!taskData.title) {
+    const error = new Error('Task title is required');
+    error.statusCode = 400;
+    throw error;
   }
-};
+  
+  const newTask = await safeQuery(
+    () => new Task(taskData).save(),
+    'Failed to create task'
+  );
+  
+  // Emit socket event for real-time updates
+  io.emit("taskCreated", {
+    task: newTask,
+    userId
+  });
+  
+  res.status(201).json({
+    status: true,
+    message: 'Task created successfully',
+    task: newTask
+  });
+});
 
-export const duplicateTask = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const task = await Task.findById(id);
-    if (!task) {
-      return res.status(404).json({ status: false, message: "Task not found" });
-    }
-
-    const newTask = await Task.create({
-      ...task.toObject(),
-      title: `${task.title} - Duplicate`,
-      _id: undefined, // Remove the original ID for duplication
-    });
-
-    // Alert users of the task
-    let text = "New task has been assigned to you";
-    if (task.team?.length > 1) {
-      text += ` and ${task.team.length - 1} others.`;
-    }
-
-    text += ` Task Priority is ${
-      task.priority
-    }, so work on it accordingly. Assigned on ${new Date(
-      task.date
-    ).toDateString()}. Thank You`;
-
-    await Notice.create({
-      team: task.team,
-      text,
-      task: newTask._id,
-    });
-
-    res
-      .status(200)
-      .json({ status: true, message: "Task duplicated successfully." });
-  } catch (error) {
-    console.error("Error in duplicateTask:", error.message);
-    return res.status(500).json({ status: false, message: "Server Error" });
+export const duplicateTask = asyncHandler(async (req, res) => {
+  const userId = ensureUserId(req);
+  const { id } = req.params;
+  
+  validateId(id, 'task');
+  
+  const task = await safeQuery(
+    () => Task.findById(id),
+    `Failed to find task with ID ${id}`
+  );
+  
+  if (!task) {
+    const error = new Error('Task not found');
+    error.statusCode = 404;
+    throw error;
   }
-};
+  
+  // Create a duplicate with new task data
+  const duplicateData = { ...task.toObject() };
+  delete duplicateData._id;
+  duplicateData.title = `Copy of ${task.title}`;
+  
+  const newTask = await safeQuery(
+    () => new Task(duplicateData).save(),
+    'Failed to duplicate task'
+  );
+  
+  // Create activity for the duplication
+  await safeQuery(
+    () => new Activity({
+      user: userId,
+      action: "DUPLICATE_TASK",
+      taskId: newTask._id,
+      task: task._id,
+    }).save(),
+    'Failed to record task duplication activity'
+  );
+  
+  res.status(200).json({ 
+    status: true, 
+    message: "Task duplicated successfully." 
+  });
+});
 
 export const postTaskActivity = async (req, res) => {
   try {
@@ -93,77 +101,71 @@ export const postTaskActivity = async (req, res) => {
   }
 };
 
-export const dashBoardStatistics = async (req, res) => {
+export const dashBoardStatistics = asyncHandler(async (req, res) => {
   try {
-    const { userId, isAdmin } = req.user;
+    const { userId, isAdmin } = req.user || {};
+    
+    if (!userId) {
+      return res.status(400).json({
+        status: false,
+        message: "User ID is required"
+      });
+    }
 
-    const allTasks = isAdmin
-      ? await Task.find({
-          isTrashed: false,
+    // Add more specific error handling
+    let allTasks = [];
+    let users = [];
+
+    // Define query based on user role
+    const query = isAdmin 
+      ? { isTrashed: false }
+      : { isTrashed: false, team: userId };
+    
+    try {
+      allTasks = await Task.find(query)
+        .populate({
+          path: "team",
+          select: "name role title email",
         })
-          .populate({
-            path: "team",
-            select: "name role title email",
-          })
-          .sort({ _id: -1 })
-      : await Task.find({
-          isTrashed: false,
-          team: { $all: [userId] },
-        })
-          .populate({
-            path: "team",
-            select: "name role title email",
-          })
-          .sort({ _id: -1 });
-
-    const users = await User.find({ isActive: true })
-      .select("name title role isAdmin")
-      .limit(10)
-      .sort({ _id: -1 });
-
+        .sort({ _id: -1 })
+        .lean();
+    } catch (taskError) {
+      console.error("Task query error:", taskError);
+      // Continue with empty tasks instead of failing completely
+    }
+    
+    try {
+      users = await User.find({ isActive: true })
+        .select("name title role isAdmin")
+        .limit(10)
+        .sort({ _id: -1 })
+        .lean();
+    } catch (userError) {
+      console.error("User query error:", userError);
+      // Continue with empty users instead of failing completely
+    }
+    
+    // Process task statistics safely
     const groupTasks = allTasks.reduce((result, task) => {
-      const stage = task.stage;
-
-      if (!result[stage]) {
-        result[stage] = 1;
-      } else {
-        result[stage] += 1;
-      }
-
+      const stage = task.stage || "backlog";
+      result[stage] = (result[stage] || 0) + 1;
       return result;
     }, {});
-
-    const groupData = Object.entries(
-      allTasks.reduce((result, task) => {
-        const { priority } = task;
-
-        result[priority] = (result[priority] || 0) + 1;
-        return result;
-      }, {})
-    ).map(([name, total]) => ({ name, total }));
-
-    // calculate total tasks
-    const totalTasks = allTasks?.length;
-    const last10Task = allTasks?.slice(0, 10);
-
-    const summary = {
-      totalTasks,
-      last10Task,
-      users: isAdmin ? users : [],
-      tasks: groupTasks,
-      graphData: groupData,
-    };
-
+    
     res.status(200).json({
       status: true,
-      message: "Successfully",
-      ...summary,
+      statistics: groupTasks,
+      users,
+      tasks: allTasks
     });
   } catch (error) {
-    console.error("Error in dashboardStatistics:", error.message);
-    return res.status(500).json({ status: false, message: "Server Error" });
+    console.error("Dashboard statistics error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Server error while fetching dashboard data"
+    });
   }
-};
+});
 
 export const getTasks = async (req, res) => {
   try {
@@ -338,8 +340,6 @@ export const deleteRestoreTask = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server Error" });
   }
 };
-
-// Add this function to your task controller
 
 export const checkUserWipLimit = async (req, res) => {
   try {
