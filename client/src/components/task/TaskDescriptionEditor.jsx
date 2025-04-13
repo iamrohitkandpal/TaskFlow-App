@@ -34,6 +34,17 @@ const TaskDescriptionEditor = ({ taskId, initialContent, onUpdate }) => {
   useEffect(() => {
     if (!taskId || !user?._id) return;
     
+    // Create handlers outside to properly remove them later
+    const contentUpdateHandler = (data) => {
+      if (data.userId !== user._id && editor) {
+        editor.commands.setContent(data.content, false);
+      }
+    };
+    
+    const collaboratorUpdateHandler = (data) => {
+      setCollaborators(data.collaborators);
+    };
+    
     // Join the collaborative session
     socket.emit('join-collaborative-session', {
       taskId,
@@ -42,23 +53,16 @@ const TaskDescriptionEditor = ({ taskId, initialContent, onUpdate }) => {
     });
     
     // Listen for content updates from other users
-    socket.on('content-update', (data) => {
-      // Only update if from another user
-      if (data.userId !== user._id && editor) {
-        editor.commands.setContent(data.content, false);
-      }
-    });
+    socket.on('content-update', contentUpdateHandler);
     
     // Listen for collaborator updates
-    socket.on('collaborator-update', (data) => {
-      setCollaborators(data.collaborators);
-    });
+    socket.on('collaborator-update', collaboratorUpdateHandler);
     
     return () => {
       // Leave the session when component unmounts
       socket.emit('leave-collaborative-session', { taskId, userId: user._id });
-      socket.off('content-update');
-      socket.off('collaborator-update');
+      socket.off('content-update', contentUpdateHandler);
+      socket.off('collaborator-update', collaboratorUpdateHandler);
     };
   }, [taskId, user, editor]);
   

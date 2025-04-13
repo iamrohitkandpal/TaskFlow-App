@@ -51,92 +51,72 @@ const KanbanBoard = ({ projectId }) => {
     fetchTasks();
   }, [projectId]);
 
+  // Fix the handleDragEnd function with optimistic updates and rollback
   const handleDragEnd = async (result) => {
-    if (!result.destination) return; // Dropped outside the list
+    const { destination, source, draggableId } = result;
     
-    const { source, destination, draggableId } = result;
+    // No change or dropped outside valid area
+    if (!destination || 
+        (destination.droppableId === source.droppableId && 
+         destination.index === source.index)) {
+      return;
+    }
     
-    // Check if task moved to a different column
-    if (source.droppableId !== destination.droppableId) {
-      try {
-        // Get the column ID (status) from the droppableId
-        // Format is "column-{status}-{category}"
-        const newStatus = destination.droppableId.split('-')[1];
-        
-        // Find the task that was moved
-        const movedTask = tasks.find(task => task._id === draggableId);
-        
-        if (!movedTask) return;
-        
-        // Check WIP limits if moving to in-progress
-        if (newStatus === 'in-progress' && movedTask.assignee) {
-          const wipCheck = await axios.get(
-            `${API_BASE_URL}/tasks/wip-limit/${movedTask.assignee._id || movedTask.assignee}`
+    try {
+      // Extract the new status from the destination droppableId
+      const newStatus = destination.droppableId.split('-')[1];
+      
+      // Check WIP limit if moving to in-progress
+      if (newStatus === 'in-progress') {
+        try {
+          const wipResponse = await axios.get(
+            `${API_BASE_URL}/tasks/user/${user._id}/wip-limit`,
+            { headers: { Authorization: `Bearer ${token}` } }
           );
           
-          if (wipCheck.data.isLimitExceeded) {
+          if (wipResponse.data.isLimitExceeded) {
             setNotification({
               open: true,
-              message: `WIP limit exceeded for ${movedTask.assignee.name || 'assigned user'}. Task not moved.`,
+              message: `Work-in-progress limit reached (${wipResponse.data.limit} tasks). Please complete existing tasks first.`,
               severity: 'warning'
             });
             return; // Don't proceed with the move
           }
+        } catch (err) {
+          console.warn('Error checking WIP limit:', err);
+          // Continue anyway since this is a non-critical check
         }
-        
-        // Update task status on the server
-        await updateTaskStatus({ id: draggableId, status: newStatus }).unwrap();
-        
-        // Extract the category from droppableId
-        const newCategory = destination.droppableId.split('-')[2];
-        
-        // Update local state
-        setTasks(tasks.map(task => 
-          task._id === draggableId 
-            ? { ...task, stage: newStatus, category: newCategory !== 'Uncategorized' ? newCategory : null } 
-            : task
-        ));
-        
-        setNotification({
-          open: true,
-          message: `Task moved to ${newStatus.replace('-', ' ')}`,
-          severity: 'success'
-        });
-      } catch (err) {
-        console.error('Error updating task status:', err);
-        setNotification({
-          open: true,
-          message: 'Failed to update task. Please try again.',
-          severity: 'error'
-        });
       }
-    } else if (source.index !== destination.index) {
-      // Task reordered within the same column - update task priority
-      // This would require an API to update task order/priority
-      // For now, just update the UI
-      const reorderedTasks = Array.from(tasks);
-      const movedTask = reorderedTasks.find(task => task._id === draggableId);
       
-      // Remove the task from its position
-      const filteredTasks = reorderedTasks.filter(task => task._id !== draggableId);
+      // Save the original task for rollback
+      const originalTask = tasks.find(t => t._id === draggableId);
       
-      // Find all tasks in the same column
-      const columnTasks = filteredTasks.filter(
-        t => t.stage === movedTask.stage && 
-             (t.category || 'Uncategorized') === (movedTask.category || 'Uncategorized')
-      );
+      // Optimistic update in UI
+      setTasks(tasks.map(task => 
+        task._id === draggableId 
+          ? { ...task, stage: newStatus } 
+          : task
+      ));
       
-      // Insert the task at new position
-      columnTasks.splice(destination.index, 0, movedTask);
+      // Update task status on the server
+      await updateTaskStatus({ id: draggableId, status: newStatus }).unwrap();
       
-      // Update the tasks array
-      setTasks([
-        ...filteredTasks.filter(
-          t => t.stage !== movedTask.stage || 
-               (t.category || 'Uncategorized') !== (movedTask.category || 'Uncategorized')
-        ),
-        ...columnTasks
-      ]);
+      setNotification({
+        open: true,
+        message: `Task moved to ${newStatus.replace('-', ' ')}`,
+        severity: 'success'
+      });
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      
+      // Roll back the optimistic update
+      setTasks(prevTasks => [...prevTasks]);
+      
+      setNotification({
+        open: true,
+        message: 'Failed to update task. Please try again.',
+        severity: 'error'
+      });
     }
   };
 

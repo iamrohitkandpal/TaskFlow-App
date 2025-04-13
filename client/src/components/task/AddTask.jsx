@@ -100,21 +100,39 @@ const AddTask = ({ open, setOpen, task }) => {
     }
   };
 
+  // Improve handleSelect function
   const handleSelect = (e) => {
     const files = Array.from(e.target.files);
     
-    // Validate file types and sizes
+    // Check total size first
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB total
+    
+    if (totalSize > MAX_TOTAL_SIZE) {
+      toast.error(`Total file size exceeds the 25MB limit. Please reduce file size or upload fewer files.`);
+      e.target.value = ""; // Clear the file input
+      return;
+    }
+    
+    // Then check individual files
     const invalidFiles = files.filter(file => 
       !ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE
     );
     
     if (invalidFiles.length > 0) {
-      toast.error(`Some files were rejected. Please only upload images, PDFs or text files under 5MB.`);
+      const invalidNames = invalidFiles.map(f => f.name).join(", ");
+      toast.error(`Invalid files: ${invalidNames}. Please only upload images, PDFs or text files under 5MB.`);
+      
       // Filter out invalid files
       const validFiles = files.filter(file => 
         ALLOWED_FILE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE
       );
       setAssets(validFiles);
+      
+      // If all files were invalid, clear the input
+      if (validFiles.length === 0) {
+        e.target.value = "";
+      }
     } else {
       setAssets(files);
     }

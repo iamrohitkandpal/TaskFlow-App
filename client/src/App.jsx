@@ -5,7 +5,7 @@ import Trash from "./pages/Trash";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TaskDetails from "./pages/TaskDetails";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
@@ -22,6 +22,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import IntegrationsSettings from "./pages/IntegrationsSettings";
 import OAuthCallback from "./components/integrations/OAuthCallback";
 import ProjectTimeline from "./pages/ProjectTimeline";
+import NetworkStatus from "./components/NetworkStatus";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -131,6 +132,35 @@ function App() {
   }, [dispatch]);
 
   useEffect(() => {
+    // Handle network status changes
+    const handleOnline = () => {
+      toast.success('You are back online!');
+      // Trigger sync if user is logged in
+      if (user?._id) {
+        syncDataWithServer(localStorage.getItem(AUTH_TOKEN_NAME))
+          .then(result => {
+            if (result.success) {
+              console.log('Data synchronized successfully after coming online');
+            }
+          })
+          .catch(err => console.error('Failed to sync after coming online:', err));
+      }
+    };
+    
+    const handleOffline = () => {
+      toast.error('You are offline. Some features may be limited.');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [user]);
+
+  useEffect(() => {
     // Only initialize socket if user is authenticated
     if (user?._id) {
       initializeSocket(user._id);
@@ -169,6 +199,7 @@ function App() {
         </Routes>
 
         <Toaster richColors />
+        <NetworkStatus />
       </main>
     </ErrorBoundary>
   );
