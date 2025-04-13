@@ -55,88 +55,82 @@ export const savePendingRequest = async (request) => {
   await tx.done;
 };
 
-// Process pending requests when back online
-export const processPendingRequests = async (authToken) => {
-  const db = await initDB();
-  const tx = db.transaction('pendingRequests', 'readwrite');
-  const store = tx.objectStore('pendingRequests');
-  const pendingRequests = await store.getAll();
+// Improve the processPendingRequests function
+const processPendingRequests = async (token) => {
+  if (!navigator.onLine) {
+    return { processed: 0, failed: 0, conflicts: 0 };
+  }
   
-  const results = [];
-  const successIds = [];
-  const conflicts = [];
-  
-  // Sort by timestamp to process oldest first
-  pendingRequests.sort((a, b) => a.timestamp - b.timestamp);
-  
-  for (const request of pendingRequests) {
-    try {
-      // For update operations, check for conflicts first
-      if (request.method === 'PUT' && request.url.includes('/tasks/')) {
-        // Extract task ID from URL
-        const taskId = request.url.split('/').pop().split('?')[0];
+  try {
+    const pendingRequests = await OfflineStorage.getSyncQueue();
+    if (!pendingRequests.length) return { processed: 0, failed: 0, conflicts: 0 };
+
+    let processed = 0;
+    let failed = 0;
+    let conflicts = 0;
+    const succeededIds = [];
+    
+    for (const request of pendingRequests) {
+      try {
+        // Add timestamp to check for conflicts
+        const requestWithTimestamp = {
+          ...request.operation,
+          clientTimestamp: request.timestamp
+        };
         
-        // Fetch current task state from server
-        const currentResponse = await axios.get(`${API_BASE_URL}/tasks/${taskId}`, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
+        const response = await axios({
+          method: requestWithTimestamp.method || 'POST',
+          url: `${API_BASE_URL}${requestWithTimestamp.endpoint}`,
+          data: requestWithTimestamp.data,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Client-Timestamp': request.timestamp
+          }
         });
         
-        const serverTask = currentResponse.data.task;
-        
-        // Check if there's a conflict (server version is newer)
-        if (serverTask.updatedAt > request.data.updatedAt) {
-          conflicts.push({
-            requestId: request.id,
-            clientData: request.data,
-            serverData: serverTask
+        if (response.data.conflict) {
+          conflicts++;
+          // Store conflict data for resolution
+          await OfflineStorage.addConflict({
+            id: request.id,
+            serverData: response.data.serverData,
+            clientData: requestWithTimestamp.data,
+            timestamp: Date.now()
           });
-          continue; // Skip this request for now
+        } else {
+          processed++;
+          succeededIds.push(request.id);
         }
+      } catch (error) {
+        console.error('Error processing offline request:', error);
+        failed++;
       }
-      
-      // Process the request
-      const response = await axios({
-        url: request.url,
-        method: request.method,
-        data: request.data,
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-      
-      successIds.push(request.id);
-      results.push({
-        success: true,
-        requestId: request.id,
-        response: response.data
-      });
-    } catch (error) {
-      console.error('Failed to process pending request:', error);
-      results.push({
-        success: false,
-        requestId: request.id,
-        error: error.message
-      });
     }
+    
+    // Remove successfully processed requests
+    if (succeededIds.length) {
+      await OfflineStorage.clearSyncQueue(succeededIds);
+    }
+    
+    return { processed, failed, conflicts };
+  } catch (error) {
+    console.error('Error in processPendingRequests:', error);
+    return { processed: 0, failed: 0, conflicts: 0, error: error.message };
   }
-  
-  // Delete successfully processed requests
-  for (const id of successIds) {
-    await store.delete(id);
-  }
-  
-  // Return results including any conflicts
-  return {
-    results,
-    conflicts
-  };
 };
 
 // Use this function when the app comes back online
 export const syncDataWithServer = async (authToken) => {
-  if (!navigator.onLine) return { success: false, reason: 'offline' };
+  // Check internet connectivity
+  if (!navigator.onLine) {
+    console.log('Device is offline, skipping sync');
+    return { success: false, reason: 'offline' };
+  }
   
   try {
+    // Try a quick connectivity check before starting full sync
+    await axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
+    
     // Process any pending requests first
     const pendingResults = await processPendingRequests(authToken);
     
@@ -144,7 +138,8 @@ export const syncDataWithServer = async (authToken) => {
     const response = await axios.get(`${API_BASE_URL}/tasks`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
-      }
+      },
+      timeout: 10000 // 10 second timeout for this specific request
     });
     
     // Save fresh data to IndexedDB
@@ -157,9 +152,19 @@ export const syncDataWithServer = async (authToken) => {
     };
   } catch (error) {
     console.error('Error during sync:', error);
+    
+    // Differentiate between types of errors
+    if (!navigator.onLine) {
+      return { success: false, reason: 'offline' };
+    }
+    
+    if (error.code === 'ECONNABORTED') {
+      return { success: false, reason: 'timeout', error: 'Server request timed out' };
+    }
+    
     return { 
       success: false, 
-      reason: 'sync-error',
+      reason: error.response?.status === 401 ? 'auth-error' : 'sync-error',
       error: error.message 
     };
   }
