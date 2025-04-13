@@ -15,7 +15,7 @@ import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { IoClose } from "react-icons/io5";
 import Settings from "./pages/Settings";
-import { initializeSocket, disconnectSocket } from "./services/socketService";
+import socket, { initializeSocket, disconnectSocket } from "./services/socketService";
 import Reports from "./pages/Reports";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PrivateRoute from "./components/PrivateRoute";
@@ -122,22 +122,27 @@ function App() {
           dispatch(logout());
         });
       }
-      
-      // Initialize socket only when userId is available
-      if (user?.userId || user?._id) {
-        initializeSocket(user.userId || user._id);
-      }
     } catch (error) {
       console.error('Error in auth check:', error);
       // Clear potentially corrupted storage data
       localStorage.removeItem('token');
       localStorage.removeItem('userInfo');
     }
-    
-    return () => {
-      disconnectSocket();
-    };
-  }, [dispatch, user?.userId]);
+  }, [dispatch]);
+
+  useEffect(() => {
+    // Only initialize socket if user is authenticated
+    if (user?._id) {
+      initializeSocket(user._id);
+      
+      // Add event listeners for socket events here if needed
+      
+      // Proper cleanup
+      return () => {
+        disconnectSocket();
+      };
+    }
+  }, [user]);
 
   return (
     <ErrorBoundary>

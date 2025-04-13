@@ -1,13 +1,13 @@
-import store from '../redux/store';  // Correct - using default import
-import { addTask, updateTask, deleteTask } from '../redux/slices/taskSlice';
-import { addActivity } from '../redux/slices/activitySlice';
-import { API_BASE_URL } from '../config/constants';
+import { io } from "socket.io-client";
+import { SOCKET_URL } from "../config/constants";
 
-import io from 'socket.io-client';
-
-// Create socket connection, replacing the http:// or https:// with ws:// or wss://
-const socketUrl = API_BASE_URL.replace(/^http/, 'ws').replace('/api', '');
 let socket = null;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectAttempts = 0;
+
+const getSocketUrl = () => {
+  return SOCKET_URL;
+};
 
 export const initializeSocket = (userId) => {
   if (socket && socket.connected) {
@@ -15,47 +15,46 @@ export const initializeSocket = (userId) => {
     return socket;
   }
 
-  socket = io(socketUrl, {
-    transports: ['websocket'],
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-  });
+  // Close any existing socket before creating a new one
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 
-  // Setup connection event listeners
-  socket.on('connect', () => {
-    console.log('Socket connected:', socket.id);
-    
-    // Join user's personal room for targeted updates
-    if (userId) {
-      socket.emit('join', userId);
-    }
-  });
+  try {
+    socket = io(getSocketUrl(), {
+      transports: ['websocket', 'polling'], // Add polling as fallback
+      reconnection: true,
+      reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+      withCredentials: true,
+      query: userId ? { userId } : {}
+    });
 
-  socket.on('taskUpdate', (data) => {
-    if (data.action === 'create') {
-      store.dispatch(addTask(data.task));
-    } else if (data.action === 'update') {
-      store.dispatch(updateTask(data.task));
-    } else if (data.action === 'delete') {
-      store.dispatch(deleteTask(data.taskId));
-    }
-  });
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      reconnectAttempts = 0; // Reset reconnect attempts
+      
+      if (userId) {
+        socket.emit('authenticate', { userId });
+      }
+    });
 
-  socket.on('newActivity', (activity) => {
-    store.dispatch(addActivity(activity));
-  });
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+      reconnectAttempts++;
+    });
 
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected');
-  });
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+    });
 
-  socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
-  });
-
-  return socket;
+    return socket;
+  } catch (error) {
+    console.error('Failed to initialize socket:', error);
+    return null;
+  }
 };
 
 export const disconnectSocket = () => {

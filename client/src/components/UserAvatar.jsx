@@ -20,7 +20,7 @@ const UserAvatar = () => {
   const navigate = useNavigate();
 
   const [logoutUser] = useLogoutMutation();
-  console.log(user);
+  // console.log(user);
   
 
   const logoutHandler = async () => {

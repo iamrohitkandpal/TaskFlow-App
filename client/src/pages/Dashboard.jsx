@@ -19,23 +19,23 @@ import Loader from "./../components/Loader";
 import ActivityFeed from "../components/ActivityFeed";
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
 
+const TaskHeader = () => (
+  <thead className="border-b border-gray-300">
+    <tr className="text-black text-left">
+      <th className="py-2">Title</th>
+      <th className="py-2">Priority</th>
+      <th className="py-2">Team</th>
+      <th className="py-2 hidden md:block">Created</th>
+    </tr>
+  </thead>
+);
+
 const TaskTable = ({ tasks }) => {
   const ICONS = {
     high: <MdKeyboardDoubleArrowUp />,
     medium: <MdKeyboardArrowUp />,
     normal: <MdKeyboardArrowDown />,
   };
-
-  const TaskHeader = () => (
-    <thead className="border-b border-gray-300">
-      <tr className="text-black text-left">
-        <th className="py-2">Title</th>
-        <th className="py-2">Priority</th>
-        <th className="py-2">Team</th>
-        <th className="py-2 hidden md:block">Created</th>
-      </tr>
-    </thead>
-  );
 
   const TableRow = ({ task }) => (
     <tr className="border-b border-gray-300 text-gray-600 hover:bg-gray-300/10">

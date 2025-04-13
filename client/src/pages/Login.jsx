@@ -38,19 +38,21 @@ const Login = () => {
       const res = await login(data).unwrap();
       if (res?.status) {
         dispatch(setCredentials(res));
-
-        // Process any pending offline changes
-        const syncService = await import("../services/syncService");
-        syncService.syncDataWithServer(res.token);
-
         navigate("/dashboard");
       }
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage =
-        error.data?.message ||
-        error.error ||
-        "Login failed. Please check your credentials.";
+      
+      // Enhanced error message handling
+      let errorMessage;
+      if (error.status === 500) {
+        errorMessage = "Server error. Please try again later.";
+      } else {
+        errorMessage = error.data?.message || 
+                      error.error ||
+                      "Login failed. Please check your credentials.";
+      }
+      
       toast.error(errorMessage);
     } finally {
       setLoading(false);

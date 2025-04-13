@@ -1,23 +1,45 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../../config/constants';
 
-export const baseQuery = fetchBaseQuery({
+const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers, { getState }) => {
-    // Get token from state if available, otherwise from localStorage
-    const token = getState().auth.token || localStorage.getItem('token');
+    const token = getState().auth?.token;
     
     if (token) {
-      // Ensure token is properly formatted with Bearer prefix
-      headers.set('authorization', token.startsWith('Bearer ') ? token : `Bearer ${token}`);
+      headers.set('authorization', `Bearer ${token}`);
     }
     
     return headers;
   },
+  credentials: 'include', // Critical for sending cookies with requests
 });
 
+// Enhanced error logging for debugging
+const baseQueryWithErrorHandling = async (args, api, extraOptions) => {
+  try {
+    const result = await baseQuery(args, api, extraOptions);
+    
+    if (result.error) {
+      console.log('API error:', {
+        url: typeof args === 'string' ? args : args.url,
+        status: result.error.status,
+        data: result.error.data
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('API request failed:', error);
+    return {
+      error: { status: 500, data: { message: error.message } }
+    };
+  }
+};
+
 export const apiSlice = createApi({
-  baseQuery,
-  tagTypes: ['Tasks', 'Users', 'Projects', 'Reports', 'Activities', 'Notices'],
-  endpoints: (builder) => ({}),
+  reducerPath: 'api',
+  baseQuery: baseQueryWithErrorHandling,
+  tagTypes: ['Tasks', 'Users', 'Projects', 'TeamList', 'Notifications'],
+  endpoints: (builder) => ({})
 });
