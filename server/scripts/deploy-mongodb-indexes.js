@@ -39,6 +39,20 @@ const createIndexes = async () => {
     );
     console.log('✅ Task text search index created');
     
+    // Task indexes for efficient filtering
+    await Task.collection.createIndex(
+      { projectId: 1, stage: 1, isTrashed: 1 },
+      { background: true }
+    );
+    console.log('✅ Task filtering index created');
+    
+    // Index for rapid task searches
+    await Task.collection.createIndex(
+      { title: "text", description: "text" },
+      { weights: { title: 10, description: 5 }, name: "task_search_index" }
+    );
+    console.log('✅ Task search index created');
+    
     // User indexes
     await User.createIndexes();
     console.log('✅ User indexes created');
@@ -63,6 +77,13 @@ const createIndexes = async () => {
       { userId: 1, timestamp: -1 }
     );
     console.log('✅ Activity filtering index created');
+    
+    // Index for activity dashboard queries
+    await Activity.collection.createIndex(
+      { userId: 1, timestamp: -1, type: 1 },
+      { background: true }
+    );
+    console.log('✅ Activity dashboard index created');
     
     // Project indexes
     await Project.createIndexes();

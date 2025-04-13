@@ -23,7 +23,7 @@ export const summarizeText = async (text, maxLength = 100) => {
       return `${text.substring(0, maxLength)}...`;
     }
     
-    // Use the client library
+    // Use the Hugging Face client library
     const result = await inference.summarization({
       model: 'facebook/bart-large-cnn',
       inputs: text,
