@@ -308,6 +308,17 @@ export const deleteRestoreTask = async (req, res) => {
     const { id } = req.params;
     const { actionType } = req.query;
 
+    // For single task operations, verify the task exists first
+    if ((actionType === "delete" || actionType === "restore") && id !== "all") {
+      const taskExists = await Task.exists({ _id: id });
+      if (!taskExists) {
+        return res.status(404).json({ 
+          status: false, 
+          message: "Task not found" 
+        });
+      }
+    }
+
     if (actionType === "delete") {
       await Task.findByIdAndDelete(id);
     } else if (actionType === "deleteAll") {
@@ -323,21 +334,37 @@ export const deleteRestoreTask = async (req, res) => {
         { isTrashed: true },
         { $set: { isTrashed: false } }
       );
+    } else {
+      return res.status(400).json({ 
+        status: false, 
+        message: "Invalid action type" 
+      });
     }
 
     // Emit socket event
     io.emit("taskUpdated", { 
-      action: "delete", 
+      action: actionType, 
       taskId: id,
       userId: req.user.userId
     });
 
-    res
-      .status(200)
-      .json({ status: true, message: "Operation performed successfully." });
+    res.status(200).json({ 
+      status: true, 
+      message: "Operation performed successfully." 
+    });
   } catch (error) {
     console.error("Error in deleteRestoreTask:", error.message);
-    return res.status(500).json({ status: false, message: "Server Error" });
+    // Check for invalid ObjectId format
+    if (error.name === "CastError" && error.kind === "ObjectId") {
+      return res.status(400).json({ 
+        status: false, 
+        message: "Invalid task ID format" 
+      });
+    }
+    return res.status(500).json({ 
+      status: false, 
+      message: "Server Error" 
+    });
   }
 };
 

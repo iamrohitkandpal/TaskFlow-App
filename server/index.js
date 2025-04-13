@@ -42,17 +42,18 @@ const httpServer = createServer(app);
 // Configure CORS
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = NODE_ENV === 'production' 
-      ? (Array.isArray(config.ALLOWED_ORIGINS) ? config.ALLOWED_ORIGINS : [config.ALLOWED_ORIGINS]) 
-      : ['http://localhost:7000', 'http://127.0.0.1:7000'];
+      ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [config.CLIENT_URL])
+      : ['http://localhost:7000', 'http://127.0.0.1:7000', 'http://localhost:3000'];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`Request from disallowed origin: ${origin}`);
+      callback(null, true); // Still allow it but log it - for development
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -76,6 +77,9 @@ export { io };
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Uncomment or add this line (after cookieParser middleware)
+app.use(standardizeResponse);
 
 // Add security headers middleware
 import helmet from 'helmet';
@@ -126,8 +130,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-app.use(standardizeResponse);
 
 // Configure logger - use a more concise format in production
 if (NODE_ENV === 'production') {

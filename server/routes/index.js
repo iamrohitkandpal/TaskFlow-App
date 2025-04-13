@@ -11,9 +11,11 @@ import notificationRoutes from './notification.routes.js';
 import pushNotificationRoutes from './push-notification.routes.js';
 import searchRoutes from './search.routes.js';
 import reportRoutes from './report.routes.js';
+import projectRoutes from './project.routes.js';
 
 const router = express.Router();
 
+// Standardize all routes with consistent paths
 router.use("/users", userRoutes);
 router.use("/tasks", taskRoutes);
 router.use("/activities", activityRoutes);
@@ -25,6 +27,7 @@ router.use('/calendar', calendarRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/push-notifications', pushNotificationRoutes);
 router.use('/search', searchRoutes);
-router.use('/api/reports', reportRoutes);
+router.use('/reports', reportRoutes); // Remove /api prefix
+router.use('/projects', projectRoutes);
 
 export default router;

@@ -1,23 +1,29 @@
-import express from 'express';
-import { checkRole } from '../middlewares/auth.middleware.js';
-import { protectedRoute } from '../middlewares/auth.middleware.js';
+import express from "express";
+import { protectedRoute } from "../middlewares/auth.middleware.js";
 import {
-  getProjectAutomationRules,
-  createProjectAutomationRule,
-  updateProjectAutomationRule,
-  deleteProjectAutomationRule,
+  getProject,
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  getProjectTasks,
   getProjectDependencies,
   getProjectCriticalPath
-} from '../controllers/automation.controller.js';
+} from "../controllers/project.controller.js";
 
 const router = express.Router();
 
-router.get('/:projectId/automation-rules', checkRole(['Admin', 'Manager']), getProjectAutomationRules);
-router.post('/:projectId/automation-rules', checkRole(['Admin', 'Manager']), createProjectAutomationRule);
-router.put('/:projectId/automation-rules/:ruleId', checkRole(['Admin', 'Manager']), updateProjectAutomationRule);
-router.delete('/:projectId/automation-rules/:ruleId', checkRole(['Admin', 'Manager']), deleteProjectAutomationRule);
+// Project routes
+router.get('/', protectedRoute, getProjects);
+router.get('/:projectId', protectedRoute, getProject);
+router.post('/', protectedRoute, createProject);
+router.put('/:projectId', protectedRoute, updateProject);
+router.delete('/:projectId', protectedRoute, deleteProject);
 
-// Add these routes to your project routes
+// Project task routes
+router.get('/:projectId/tasks', protectedRoute, getProjectTasks);
+
+// Project dependencies and critical path analysis
 router.get('/:projectId/dependencies', protectedRoute, getProjectDependencies);
 router.get('/:projectId/critical-path', protectedRoute, getProjectCriticalPath);
 

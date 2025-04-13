@@ -10,7 +10,7 @@ import {
   postTaskActivity,
   trashTask,
   updateTask,
-  checkUserWipLimit // Add this import
+  checkUserWipLimit
 } from "../controllers/task.controller.js";
 import { isAdminRoute, protectedRoute } from "../middlewares/auth.middleware.js";
 import { checkWipLimit } from '../controllers/user-settings.controller.js';
@@ -24,21 +24,11 @@ router.post("/activity/:id", protectedRoute, postTaskActivity);
 router.get("/dashboard", protectedRoute, dashBoardStatistics);
 router.get("/", protectedRoute, getTasks);
 router.get("/:id", protectedRoute, getTask);
+router.get('/wip-limit/:userId', protectedRoute, checkUserWipLimit);
 
 router.put("/create-subtask/:id", protectedRoute, isAdminRoute, createSubTask);
 router.put("/update/:id", protectedRoute, isAdminRoute, updateTask);
-router.put("/:id", protectedRoute, isAdminRoute, trashTask);
-
-router.delete(
-  "/delete-restore/:id?",
-  protectedRoute,
-  isAdminRoute,
-  deleteRestoreTask
-);
-
-router.post('/', protectedRoute, checkWipLimit, createTask);
-
-// Make sure this route is correctly defined and imported
-router.get('/wip-limit/:userId', protectedRoute, checkUserWipLimit);
+router.put("/trash/:id", protectedRoute, isAdminRoute, trashTask);
+router.put("/restore/:id", protectedRoute, isAdminRoute, deleteRestoreTask);
 
 export default router;
