@@ -126,6 +126,26 @@ taskSchema.index({
   comments: 'text' 
 });
 
+// Pre-save validation middleware
+taskSchema.pre('save', function(next) {
+  // Validate required fields
+  if (!this.title) {
+    const error = new Error('Task title is required');
+    return next(error);
+  }
+  
+  // Validate enum fields
+  if (this.priority && !['low', 'medium', 'high', 'normal'].includes(this.priority.toLowerCase())) {
+    this.priority = 'normal'; // Default to normal if invalid
+  }
+
+  if (this.stage && !['backlog', 'todo', 'in-progress', 'review', 'completed'].includes(this.stage.toLowerCase())) {
+    this.stage = 'backlog'; // Default to backlog if invalid
+  }
+  
+  next();
+});
+
 const Task = mongoose.model("Task", taskSchema);
 
 export default Task;

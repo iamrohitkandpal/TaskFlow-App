@@ -1,84 +1,92 @@
-import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
-// If expressJwt is used elsewhere, keep it, otherwise remove
-import expressJwt from 'express-jwt';
+import jwt from 'jsonwebtoken';
+import User from '../models/user.model.js';
+import { asyncHandler } from '../utils/controllerUtils.js';
 
-/**
- * Middleware to protect routes requiring authentication
- * Verifies JWT token from cookies and attaches user info to request
- */
-const protectedRoute = async (req, res, next) => {
-  try {
-    let token = req.cookies?.token;
-
-    if (token) {
-      try {
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        const result = await User.findById(decoded.userId).select(
-          "isAdmin email"
-        );
-
-        if (!result) {
-          return res
-            .status(401)
-            .json({ status: false, message: "User not found" });
-        }
-
-        req.user = {
-          userId: decoded.userId,
-          isAdmin: result.isAdmin,
-          email: result.email,
-        };
-
-        return next();
-      } catch (error) {
-        console.error("Token verification error:", error.message);
-        return res
-          .status(401)
-          .json({ status: false, message: "Not Authorized, Invalid Token" });
-      }
-    } else {
-      return res
-        .status(401)
-        .json({ status: false, message: "Not Authorized, Login Again" });
-    }
-  } catch (error) {
-    console.error("Error in protectedRoute middleware:", error.message);
-    return res
-      .status(401)
-      .json({ status: false, message: "Not Authorized, Login Again" });
+export const protectedRoute = asyncHandler(async (req, res, next) => {
+  // Get token from cookie or Authorization header
+  let token = req.cookies?.token;
+  
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
   }
-};
-
-/**
- * Middleware to restrict routes to admin users only
- * Requires protectedRoute middleware to run first
- */
-const isAdminRoute = async (req, res, next) => {
-  try {
-    if (req.user && req.user.isAdmin) {
-      return next();
-    } else {
-      return res
-        .status(403)
-        .json({ status: false, message: "Not Authorized, Admin Only" });
-    }
-  } catch (error) {
-    console.error("Error in isAdminRoute middleware:", error);
-    return res
-      .status(500)
-      .json({ status: false, message: "Server Error" });
+  
+  if (!token) {
+    const error = new Error('Authentication required: No token provided');
+    error.statusCode = 401;
+    throw error;
   }
-};
+
+  // Verify token
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!decoded || !decoded.userId) {
+      const error = new Error('Invalid token format');
+      error.statusCode = 401;
+      throw error;
+    }
+    
+    // Find user with complete data
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      const error = new Error('User not found or has been deleted');
+      error.statusCode = 401;
+      throw error;
+    }
+    
+    if (!user.isActive) {
+      const error = new Error('User account is deactivated');
+      error.statusCode = 403;
+      throw error;
+    }
+    
+    // Set user data on request
+    req.user = {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role || 'User',
+      isAdmin: user.isAdmin || false,
+    };
+    
+    next();
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError') {
+      const error = new Error('Invalid token');
+      error.statusCode = 401;
+      throw error;
+    } else if (err.name === 'TokenExpiredError') {
+      const error = new Error('Token expired');
+      error.statusCode = 401;
+      throw error;
+    }
+    throw err;
+  }
+});
+
+export const isAdminRoute = asyncHandler(async (req, res, next) => {
+  if (!req.user) {
+    const error = new Error('Authentication required');
+    error.statusCode = 401;
+    throw error;
+  }
+  
+  if (!req.user.isAdmin) {
+    const error = new Error('Admin privileges required');
+    error.statusCode = 403;
+    throw error;
+  }
+  
+  next();
+});
 
 /**
  * Middleware to check if user has required role(s)
  * @param {Array<string>} roles - Array of roles allowed to access the route
  * @returns {Function} Express middleware function
  */
-const checkRole = (roles) => {
+export const checkRole = (roles) => {
   return async (req, res, next) => {
     try {
       const user = await User.findById(req.user.userId);
@@ -100,6 +108,3 @@ const checkRole = (roles) => {
     }
   };
 };
-
-// Export all middleware functions together
-export { protectedRoute, isAdminRoute, checkRole };
