@@ -1,21 +1,26 @@
 import mongoose from "mongoose";
 import jwt from 'jsonwebtoken';
 
-// Add reconnection logic to database connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+    // Add reconnect options and better error handling
+    const mongoURI = process.env.MONGODB_URL;
+    
+    if (!mongoURI) {
+      console.error('MongoDB connection string missing! Check your .env file');
+      process.exit(1);
+    }
+    
+    const conn = await mongoose.connect(mongoURI, {
       serverSelectionTimeoutMS: 5000,
-      // Add these for better reconnection handling
-      autoIndex: true,
       retryWrites: true,
+      retryReads: true,
+      connectTimeoutMS: 10000,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     
-    // Add connection event handlers
+    // Add reconnection handling
     mongoose.connection.on('error', err => {
       console.error(`MongoDB connection error: ${err}`);
     });
@@ -26,30 +31,25 @@ const connectDB = async () => {
     
     return conn;
   } catch (error) {
-    console.error(`Error connecting to MongoDB: ${error.message}`);
-    // Retry connection after delay instead of exiting in production
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Retrying connection in 5 seconds...');
-      setTimeout(connectDB, 5000);
-    } else {
-      process.exit(1);
-    }
+    console.error(`MongoDB connection failed: ${error.message}`);
+    // Don't exit the process, instead return the error
+    throw error;
   }
 };
 
-export default connectDB;
-
 export const createJWT = (res, userId) => {
+  // Your JWT creation code is likely fine
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  // Attach the token to cookies
   res.cookie("token", token, {
-    httpOnly: true, // Prevents JavaScript access to cookies for security
-    secure: process.env.NODE_ENV === "production", // Ensures HTTPS in production
-    sameSite: "Strict", // Prevents CSRF attacks
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict", 
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
+
+export default connectDB;
 
