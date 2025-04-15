@@ -19,6 +19,7 @@ import { useEstimateEffortForNewTaskMutation } from '../../redux/slices/api/aiAp
 import RichTextEditor from '../editors/RichTextEditor';
 import { useDispatch } from 'react-redux';
 import { apiSlice } from "../../redux/slices/apiSlice";
+import axios from "axios";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORITY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
@@ -52,9 +53,12 @@ const AddTask = ({ open, setOpen, task }) => {
   );
   const [assets, setAssets] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [estimatedEffort, setEstimatedEffort] = useState(null);
   const [estimateEffort] = useEstimateEffortForNewTaskMutation();
   const [description, setDescription] = useState(task?.description || '');
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictData, setConflictData] = useState(null);
 
   const [createTask, { isLoading }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
@@ -63,44 +67,105 @@ const AddTask = ({ open, setOpen, task }) => {
   const dispatch = useDispatch();
 
   const submitHandler = async (data) => {
-    const uploadedFileURLs = [];
-    setUploading(true);
+    // Cache the previous state for rollback
+    const previousTaskData = task ? { ...task } : null;
+    
+    // Show optimistic UI update
+    if (task?._id) {
+      // For updates, optimistically update the UI
+      dispatch(updateTaskInCache({ 
+        ...data, 
+        _id: task._id,
+        updatedAt: new Date().toISOString()
+      }));
+    }
 
     try {
-      // Upload each file to Cloudinary
-      for (const file of assets) {
-        const url = await cloudinaryURL(file);
-        uploadedFileURLs.push(url);
+      // Process file uploads with progress tracking
+      const uploadedFileURLs = [];
+      setUploading(true);
+      
+      if (assets.length > 0) {
+        for (const file of assets) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", "taskflow");
+          
+          const response = await axios.post(
+            "https://api.cloudinary.com/v1_1/your-cloud/image/upload",
+            formData,
+            {
+              onUploadProgress: (progressEvent) => {
+                const percentCompleted = Math.round(
+                  (progressEvent.loaded * 100) / progressEvent.total
+                );
+                setUploadProgress(percentCompleted);
+              },
+              // Add retry logic for interrupted uploads
+              timeout: 30000
+            }
+          );
+          uploadedFileURLs.push(response.data.secure_url);
+        }
       }
-
-      const newData = {
+      
+      // Combine form data with uploaded files
+      const taskData = {
         ...data,
-        description, // Use the state value from the rich text editor
         assets: uploadedFileURLs,
-        team,
-        stage,
-        priority,
       };
-
-      const res = task?._id
-        ? await updateTask({ ...newData, _id: task._id }).unwrap()
-        : await createTask(newData).unwrap();
-
-      toast.success(res.message);
-
-      setTimeout(() => {
-        setOpen(false);
-        dispatch(apiSlice.util.invalidateTags(['Tasks']));
-      }, 1000);
+      
+      // Make API request with version tracking
+      if (task?._id) {
+        // For updates, include version/timestamp for conflict detection
+        const result = await updateTask({
+          ...taskData,
+          id: task._id,
+          lastModified: task.updatedAt // Send last known update timestamp 
+        }).unwrap();
+        
+        toast.success(result?.message || "Task updated successfully");
+      } else {
+        // For new tasks
+        const result = await createTask(taskData).unwrap();
+        toast.success(result?.message || "Task created successfully");
+      }
+      
+      // Reset form and close modal
+      dispatch(setTask(null));
+      setOpen(false);
+      
     } catch (error) {
-      console.error("Error submitting the form:", error.message);
-      toast.error("Failed to submit the task.");
+      console.error("Error in task submission:", error);
+      
+      // Check for version conflict
+      if (error?.data?.conflict) {
+        // Handle conflict with merge options
+        toast.error("This task was updated by someone else. Please review the changes.");
+        // Offer conflict resolution options
+        setShowConflictDialog(true);
+        setConflictData({
+          serverVersion: error.data.serverData,
+          localVersion: data
+        });
+      } else {
+        // Regular error handling
+        toast.error(error?.data?.message || "Something went wrong");
+        
+        // Rollback optimistic update if needed
+        if (previousTaskData) {
+          dispatch(revertTaskUpdate({
+            _id: task._id,
+            data: previousTaskData
+          }));
+        }
+      }
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
-  // Improve handleSelect function
   const handleSelect = (e) => {
     const files = Array.from(e.target.files);
     
@@ -314,7 +379,7 @@ const AddTask = ({ open, setOpen, task }) => {
           <div className="bg-gray-50 py-6 sm:flex sm:flex-row-reverse gap-4">
             {uploading ? (
               <span className="text-sm py-2 text-red-500">
-                Uploading assets...
+                Uploading assets... {uploadProgress}%
               </span>
             ) : (
               <Button
