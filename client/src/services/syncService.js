@@ -55,67 +55,142 @@ export const savePendingRequest = async (request) => {
   await tx.done;
 };
 
-// Improve the processPendingRequests function
+// Improve offline sync with better conflict resolution
 const processPendingRequests = async (token) => {
   if (!navigator.onLine) {
     return { processed: 0, failed: 0, conflicts: 0 };
   }
   
   try {
-    const pendingRequests = await OfflineStorage.getSyncQueue();
+    const pendingRequests = await getOfflinePendingRequests();
     if (!pendingRequests.length) return { processed: 0, failed: 0, conflicts: 0 };
 
     let processed = 0;
     let failed = 0;
     let conflicts = 0;
+    let networkErrors = 0;
     const succeededIds = [];
+    const failedRequests = [];
+    const conflictRequests = [];
     
-    for (const request of pendingRequests) {
-      try {
-        // Add timestamp to check for conflicts
-        const requestWithTimestamp = {
-          ...request.operation,
-          clientTimestamp: request.timestamp
-        };
-        
-        const response = await axios({
-          method: requestWithTimestamp.method || 'POST',
-          url: `${API_BASE_URL}${requestWithTimestamp.endpoint}`,
-          data: requestWithTimestamp.data,
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Client-Timestamp': request.timestamp
-          }
-        });
-        
-        if (response.data.conflict) {
-          conflicts++;
-          // Store conflict data for resolution
-          await OfflineStorage.addConflict({
-            id: request.id,
-            serverData: response.data.serverData,
-            clientData: requestWithTimestamp.data,
-            timestamp: Date.now()
-          });
-        } else {
-          processed++;
-          succeededIds.push(request.id);
+    // Group requests by endpoint to handle dependencies
+    const groupedRequests = pendingRequests.reduce((groups, request) => {
+      const endpoint = request.operation.endpoint;
+      if (!groups[endpoint]) groups[endpoint] = [];
+      groups[endpoint].push(request);
+      return groups;
+    }, {});
+    
+    // Process critical endpoints first (like authentication)
+    const priorityOrder = [
+      '/users/login',
+      '/users/refresh-token',
+      '/tasks/create',
+      '/tasks'
+    ];
+    
+    // Sort endpoints by priority
+    const sortedEndpoints = Object.keys(groupedRequests).sort((a, b) => {
+      const indexA = priorityOrder.findIndex(p => a.startsWith(p));
+      const indexB = priorityOrder.findIndex(p => b.startsWith(p));
+      return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+    });
+    
+    // Process requests by priority groups
+    for (const endpoint of sortedEndpoints) {
+      for (const request of groupedRequests[endpoint]) {
+        // Add exponential backoff for retries
+        const retryCount = request.retryCount || 0;
+        if (retryCount > 3) {
+          // Too many retries, mark as failed
+          failedRequests.push(request);
+          failed++;
+          continue;
         }
-      } catch (error) {
-        console.error('Error processing offline request:', error);
-        failed++;
+        
+        try {
+          // Add timestamp and version tracking
+          const requestWithMeta = {
+            ...request.operation,
+            clientTimestamp: request.timestamp,
+            retryCount: retryCount
+          };
+          
+          const response = await axios({
+            method: requestWithMeta.method || 'POST',
+            url: `${API_BASE_URL}${requestWithMeta.endpoint}`,
+            data: requestWithMeta.data,
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Client-Timestamp': request.timestamp,
+              'X-Retry-Count': retryCount
+            },
+            timeout: 15000 // 15 second timeout
+          });
+          
+          if (response.data.conflict) {
+            conflicts++;
+            conflictRequests.push({
+              request,
+              serverData: response.data.serverData
+            });
+          } else {
+            processed++;
+            succeededIds.push(request.id);
+          }
+        } catch (error) {
+          console.error('Error processing offline request:', error);
+          
+          // Check if it's a network error vs server error
+          if (!error.response) {
+            networkErrors++;
+            // Increment retry count
+            request.retryCount = (request.retryCount || 0) + 1;
+            failedRequests.push(request);
+          } else if (error.response.status >= 400 && error.response.status < 500) {
+            // Client errors - likely won't succeed with retry
+            failed++;
+            failedRequests.push(request);
+          } else {
+            // Server errors - might succeed with retry
+            request.retryCount = (request.retryCount || 0) + 1;
+            failedRequests.push(request);
+          }
+        }
       }
     }
     
     // Remove successfully processed requests
     if (succeededIds.length) {
-      await OfflineStorage.clearSyncQueue(succeededIds);
+      await clearSuccessfulRequests(succeededIds);
     }
     
-    return { processed, failed, conflicts };
+    // Update failed requests with retry counts
+    if (failedRequests.length) {
+      await updateFailedRequests(failedRequests);
+    }
+    
+    // Handle conflicts
+    if (conflictRequests.length) {
+      await storeConflicts(conflictRequests);
+    }
+    
+    return { 
+      processed, 
+      failed, 
+      conflicts,
+      networkErrors,
+      retriesScheduled: networkErrors > 0
+    };
   } catch (error) {
     console.error('Error in processPendingRequests:', error);
-    return { processed: 0, failed: 0, conflicts: 0, error: error.message };
+    return { 
+      processed: 0, 
+      failed: 0, 
+      conflicts: 0, 
+      error: error.message,
+      networkError: !error.response
+    };
   }
 };
 

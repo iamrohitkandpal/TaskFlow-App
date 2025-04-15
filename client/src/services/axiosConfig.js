@@ -27,7 +27,34 @@ instance.interceptors.request.use(
 // Response interceptor for handling common errors
 instance.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
+    const originalRequest = error.config;
+    
+    // Prevent infinite loops with retry flag
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        // Try to refresh token silently
+        const response = await axios.post(`${API_BASE_URL}/users/refresh-token`, {}, {
+          withCredentials: true
+        });
+        
+        if (response.data?.token) {
+          localStorage.setItem(AUTH_TOKEN_NAME, response.data.token);
+          
+          // Update the original request and retry
+          originalRequest.headers['Authorization'] = `Bearer ${response.data.token}`;
+          return axios(originalRequest);
+        }
+      } catch (refreshError) {
+        // If refresh fails, logout user
+        store.dispatch(logout());
+        window.location.href = '/login';
+      }
+    }
+    
+    // Continue with normal error handling
     const { response } = error;
     
     // Network errors (no response from server)

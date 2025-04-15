@@ -39,30 +39,43 @@ if (NODE_ENV === 'production') {
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS
+// More comprehensive CORS configuration
 const corsOptions = {
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
     
+    // Determine allowed origins based on environment
     const allowedOrigins = NODE_ENV === 'production' 
-      ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [config.CLIENT_URL])
+      ? (config.ALLOWED_ORIGINS || ['https://taskflow-app.com'])
       : ['http://localhost:7000', 'http://127.0.0.1:7000', 'http://localhost:3000'];
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`Request from disallowed origin: ${origin}`);
-      callback(null, true); // Still allow it but log it - for development
+      callback(new Error('CORS not allowed'));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Client-Timestamp', 'X-CSRF-Token'],
   credentials: true,
-  exposedHeaders: ['Content-Length', 'X-CSRF-Token']
+  maxAge: 86400, // 24 hours
+  preflightContinue: false
 };
 
-// Apply CORS configuration
 app.use(cors(corsOptions));
+
+// Add CORS error handling
+app.use((err, req, res, next) => {
+  if (err.message === 'CORS not allowed') {
+    return res.status(403).json({
+      status: false,
+      message: 'CORS error: Origin not allowed'
+    });
+  }
+  next(err);
+});
 
 // Import the function
 import { initializeSocketServer } from './services/socket-init.service.js';
