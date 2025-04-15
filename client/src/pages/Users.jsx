@@ -14,12 +14,18 @@ import {
 } from "../redux/slices/api/userApiSlice";
 import { toast } from "sonner";
 import Loader from "../components/Loader";
+import axios from "axios";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const token = localStorage.getItem("token");
 
 const Users = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [open, setOpen] = useState(false);
   const [openAction, setOpenAction] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState(null);
 
   const { data, isLoading, refetch } = useGetTeamListQuery();
   const [deleteUser] = useDeleteUserMutation();
@@ -46,18 +52,57 @@ const Users = () => {
   };
 
   const deleteHandler = async () => {
+    setIsDeleting(true);
+    
     try {
-      const result = await deleteUser(selected);
+      // First check if user has assigned tasks
+      const checkResponse = await axios.get(
+        `${API_BASE_URL}/users/${selected._id}/can-delete`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (checkResponse.data.hasAssignedTasks) {
+        setDeleteConfirmation({
+          show: true,
+          message: `This user has ${checkResponse.data.taskCount} assigned tasks. 
+                   How would you like to handle these tasks?`,
+          options: [
+            {value: 'reassign', label: 'Reassign to another user'},
+            {value: 'unassign', label: 'Remove assignments'},
+            {value: 'delete', label: 'Delete tasks'}
+          ]
+        });
+        
+        return;
+      }
+      
+      // If no tasks or user confirmed deletion approach
+      const result = await deleteUser({
+        id: selected._id,
+        taskHandling: deleteConfirmation?.selectedOption || 'none'
+      }).unwrap();
 
       refetch();
-      toast.success(result?.data?.message || "User Deleted");
+      toast.success(result?.message || "User deleted successfully");
+      
+      // Clean up
       setSelected(null);
-      setTimeout(() => {
-        setOpenDialog(false);
-      }, 500);
+      setDeleteConfirmation(null);
+      setOpenDialog(false);
+      
     } catch (error) {
-      console.log("Error in deleteHandler: ", error);
-      toast.error(error?.data?.message || "Something went wrong");
+      console.error("Error in deleteHandler: ", error);
+      
+      // More specific error messages based on error types
+      if (error?.data?.code === 'TASKS_EXIST') {
+        toast.error("User has assigned tasks. Please choose how to handle them.");
+      } else if (error?.status === 403) {
+        toast.error("You don't have permission to delete this user");
+      } else {
+        toast.error(error?.data?.message || "Failed to delete user");
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 

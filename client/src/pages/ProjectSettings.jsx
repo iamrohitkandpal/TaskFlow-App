@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Paper, Box, Divider, TextField, Button as MuiButton } from '@mui/material';
 import NotificationSettings from '../components/settings/NotificationSettings';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Title from '../components/Title';
 import Button from '../components/Button';
 import ConfirmationDialog from '../components/Dialogs';
+import { toast } from 'react-toastify';
+
+const API_BASE_URL = '/api';
 
 const ProjectSettings = () => {
     const { projectId } = useParams();
+    const navigate = useNavigate();
     const { token } = useSelector((state) => state.auth);
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -18,6 +22,8 @@ const ProjectSettings = () => {
     const [description, setDescription] = useState('');
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deleteMsg, setDeleteMsg] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteConfirmOptions, setDeleteConfirmOptions] = useState({ show: false, message: '', taskCount: 0 });
     
     useEffect(() => {
         const fetchProject = async () => {
@@ -65,17 +71,64 @@ const ProjectSettings = () => {
     };
     
     const handleDeleteProject = async () => {
+        setDeleteLoading(true);
+        
         try {
-            const response = await axios.delete(`/api/projects/${projectId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // First check project status
+            const statusCheck = await axios.get(
+                `${API_BASE_URL}/projects/${projectId}/delete-check`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            // If project has active tasks, show confirmation
+            if (statusCheck.data.hasActiveTasks) {
+                setDeleteConfirmOptions({
+                    show: true,
+                    message: `This project has ${statusCheck.data.taskCount} active tasks. 
+                              Are you sure you want to delete it?`,
+                    taskCount: statusCheck.data.taskCount
+                });
+                return;
+            }
+            
+            // Proceed with deletion
+            await performProjectDeletion();
+            
+        } catch (err) {
+            console.error('Failed to check project status:', err);
+            
+            if (!navigator.onLine) {
+                setError('You are offline. Please try again when connected.');
+            } else if (err.response?.status === 403) {
+                setError('You do not have permission to delete this project.');
+            } else {
+                setError('Failed to delete project. Please try again.');
+            }
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const performProjectDeletion = async () => {
+        try {
+            const response = await axios.delete(
+                `${API_BASE_URL}/projects/${projectId}`, 
+                { 
+                    headers: { Authorization: `Bearer ${token}` },
+                    timeout: 10000 // 10 second timeout for deletion
+                }
+            );
             
             if (response.data.status) {
-                window.location.href = '/dashboard';
+                toast.success('Project deleted successfully');
+                // Redirect after a short delay to allow toast to be seen
+                setTimeout(() => {
+                    navigate('/dashboard');
+                }, 1500);
             }
         } catch (err) {
             console.error('Failed to delete project:', err);
-            setError('Failed to delete project. Please try again.');
+            setError('Failed to delete project: ' + (err.response?.data?.message || 'Unknown error'));
         }
     };
 
@@ -182,4 +235,4 @@ const ProjectSettings = () => {
     );
 };
 
-export default ProjectSettings;</div>
+export default ProjectSettings;

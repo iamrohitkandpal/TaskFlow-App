@@ -14,7 +14,7 @@ import clsx from "clsx";
 import Chart from "../components/Chart";
 import { BGS, getInitials, PRIOTITYSTYELS, TASK_TYPE } from "../utils";
 import UserInfo from "../components/UserInfo";
-import { useGetDashboardStatsQuery } from "../redux/slices/api/taskApiSlice";
+import { useGetDashboardStatsQuery, useGetProductivityDataQuery } from "../redux/slices/api/taskApiSlice";
 import Loader from "./../components/Loader";
 import ActivityFeed from "../components/ActivityFeed";
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
@@ -169,89 +169,58 @@ const ActivityItem = ({ user, action, task, time }) => (
   </div>
 );
 
-const Dashboard = () => {
-  const { data, isLoading, error } = useGetDashboardStatsQuery();
+const StatisticsSection = () => {
+  const { data: dashboardData, error: dashboardError, isLoading: isLoadingDashboard } = useGetDashboardStatsQuery();
 
-  if (isLoading) return <Loader />;
+  if (dashboardError) {
+    return (
+      <div className="p-4 bg-red-50 rounded-lg">
+        <p className="text-red-500">Failed to load statistics. Please refresh.</p>
+        <button 
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded" 
+          onClick={() => dispatch(apiSlice.util.invalidateTags(['DashboardStats']))}>
+          Retry
+        </button>
+      </div>
+    );
+  }
   
-  if (error) {
+  if (isLoadingDashboard) return <Loader />;
+  
+  // Render dashboard stats
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {dashboardData?.stats.map(({ icon, bg, label, total }, index) => (
+        <Card key={index} icon={icon} bg={bg} label={label} count={total} />
+      ))}
+    </div>
+  );
+};
+
+const Dashboard = () => {
+  const { data: productivityData, error: productivityError, isLoading: isLoadingProductivity } = useGetProductivityDataQuery();
+
+  if (isLoadingProductivity) return <Loader />;
+  
+  if (productivityError) {
     return (
       <div className="p-4 text-center">
-        <p className="text-red-600 mb-2">Error loading dashboard data</p>
-        <p className="text-sm text-gray-600">{error.message || "Please try again later"}</p>
+        <p className="text-red-600 mb-2">Error loading productivity data</p>
+        <p className="text-sm text-gray-600">{productivityError.message || "Please try again later"}</p>
       </div>
     );
   }
 
-  const totals = data?.tasks || {};
-  const fallbackStats = { completed: 0, "in progress": 0, todo: 0 };
-  
-  const stats = [
-    {
-      _id: "1",
-      label: "TOTAL TASK",
-      total: data?.totalTasks || 0,
-      icon: <FaNewspaper />,
-      bg: "bg-[#1d4ed8]",
-    },
-    {
-      _id: "2",
-      label: "COMPLETED TASK",
-      total: totals["completed"] || fallbackStats.completed,
-      icon: <MdAdminPanelSettings />,
-      bg: "bg-[#0f766e]",
-    },
-    {
-      _id: "3",
-      label: "IN PROGRESS",
-      total: totals["in progress"] || fallbackStats["in progress"],
-      icon: <LuClipboardPen />,
-      bg: "bg-[#f59e0b]",
-    },
-    {
-      _id: "4",
-      label: "TODOS",
-      total: totals["todo"] || fallbackStats.todo,
-      icon: <FaArrowsToDot />,
-      bg: "bg-[#be185d]",
-    },
-  ];
-
-  const Card = ({ icon, bg, label, count }) => {
-    return (
-      <div className="w-full h-32 bg-white p-5 shadow-md rounded-md flex items-center justify-between">
-        <div className="h-full flex flex-1 flex-col justify-between">
-          <p className="text-base text-gray-600">{label}</p>
-          <span className="text-2xl font-semibold">{count}</span>
-          <span className="text-sm text-gray-400">{"110 last month"}</span>
-        </div>
-
-        <div
-          className={clsx(
-            "w-10 h-10 rounded-full flex items-center justify-center text-white",
-            bg
-          )}
-        >
-          {icon}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ icon, bg, label, total }, index) => (
-          <Card key={index} icon={icon} bg={bg} label={label} count={total} />
-        ))}
-      </div>
+      <StatisticsSection />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <div className="bg-white p-4 rounded-md shadow-sm">
             <h4 className="text-lg font-semibold mb-2">Task Status</h4>
             <div className="h-[300px]">
-              <Chart data={data?.stats || []} />
+              <Chart data={productivityData?.stats || []} />
             </div>
           </div>
           
@@ -264,7 +233,7 @@ const Dashboard = () => {
             <div className="overflow-auto">
               <table className="min-w-full">
                 <TaskHeader />
-                <TaskTable tasks={data?.recentTasks?.slice(0, 5) || []} />
+                <TaskTable tasks={productivityData?.recentTasks?.slice(0, 5) || []} />
               </table>
             </div>
           </div>
