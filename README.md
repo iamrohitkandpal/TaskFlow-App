@@ -25,14 +25,8 @@ npm run dev
 | **Smart Automation**   | AI task sorting, auto-reminders, workflow rules   | 30% reduction in manual work    |
 | **Cross-Platform Sync**| PWA support, offline mode, mobile/desktop ready   | Always-available access         |
 
-## 📊 System Overview
-```mermaid
-graph TD
-    A[Frontend] --> B[Backend API]
-    B --> C[Database]
-    B --> D[AI Services]
-    B --> E[Third-Party Integrations]
-```
+## 📊 System Architecture
+https://github.com/iamrohitkandpal/TaskFlow-App/blob/main/Taskflow%20Diagram.png?raw=true
 
 [Explore full documentation →](docs/overview.md)
 
