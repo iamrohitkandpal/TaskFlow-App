@@ -8,16 +8,7 @@ Modern teams struggle with:
 - High costs for enterprise features
 
 ## 🎯 Solution Architecture
-```mermaid
-flowchart LR
-    User --> WebApp
-    WebApp --> API
-    API --> Database
-    API --> AI_Engine
-    API --> Integrations
-    classDef box fill:#e1f5fe,stroke:#01579b;
-    class WebApp,API,Database,AI_Engine,Integrations box
-```
+![Architectue Diagram](https://github.com/iamrohitkandpal/TaskFlow-App/blob/main/Taskflow%20Diagram.png?raw=true)
 
 ## 🔑 Key Differentiators
 1. **Zero-Cost Enterprise Features**  
@@ -79,10 +70,3 @@ TaskFlow aims to provide a comprehensive task management platform with real-time
 The project is structured into two main parts:
 - **Frontend**: Built with React, Redux Toolkit, and Material UI.
 - **Backend**: Built with Node.js, Express.js, and MongoDB.
-
-## Diagrams
-### Data Flow Diagram
-![Data Flow Diagram](diagrams/data-flow.png)
-
-### Component Interaction Diagram
-![Component Interaction Diagram](diagrams/component-interaction.png)
