@@ -26,7 +26,7 @@ npm run dev
 | **Cross-Platform Sync**| PWA support, offline mode, mobile/desktop ready   | Always-available access         |
 
 ## 📊 System Architecture
-https://github.com/iamrohitkandpal/TaskFlow-App/blob/main/Taskflow%20Diagram.png?raw=true
+![image alt](https://github.com/iamrohitkandpal/TaskFlow-App/blob/main/Taskflow%20Diagram.png?raw=true)
 
 [Explore full documentation →](docs/overview.md)
 
