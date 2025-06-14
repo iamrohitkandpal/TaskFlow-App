@@ -10,9 +10,29 @@ export const analyticsApiSlice = apiSlice.injectEndpoints({
         method: 'GET',
         credentials: 'include'
       }),
-      keepUnusedDataFor: 60, // Cache for 60 seconds
+      keepUnusedDataFor: 60,
     }),
     
+    getDashboardStats: builder.query({
+      query: () => ({
+        url: `${ANALYTICS_URL}/dashboard`,
+        method: 'GET',
+        credentials: 'include'
+      }),
+      keepUnusedDataFor: 60,
+      overrideExisting: true
+    }),
+    
+    getProductivityData: builder.query({
+      query: (days = 7) => ({
+        url: `${ANALYTICS_URL}/productivity`,
+        method: 'GET',
+        credentials: 'include'
+      }),
+      keepUnusedDataFor: 60,
+      overrideExisting: true
+    }),
+
     getCompletionTime: builder.query({
       query: () => ({
         url: `${ANALYTICS_URL}/completion-time`,
@@ -48,23 +68,15 @@ export const analyticsApiSlice = apiSlice.injectEndpoints({
       }),
       keepUnusedDataFor: 60,
     }),
-    
-    getProductivityData: builder.query({
-      query: (days = 7) => ({
-        url: `${ANALYTICS_URL}/productivity?days=${days}`,
-        method: 'GET',
-        credentials: 'include'
-      }),
-      keepUnusedDataFor: 60,
-    }),
   }),
 });
 
 export const {
   useGetAllAnalyticsQuery,
+  useGetDashboardStatsQuery,
+  useGetProductivityDataQuery,
   useGetCompletionTimeQuery,
   useGetWorkloadDistributionQuery,
   useGetStatusDistributionQuery,
-  useGetBurndownDataQuery,
-  useGetProductivityDataQuery
+  useGetBurndownDataQuery
 } = analyticsApiSlice;

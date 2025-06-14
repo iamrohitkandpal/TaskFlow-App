@@ -1,16 +1,18 @@
 import Cookies from "js-cookie";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { AUTH_TOKEN_NAME } from '../../config/constants';
+import { apiSlice } from './apiSlice';
 
 const initialState = {
   user: localStorage.getItem("userInfo")
     ? JSON.parse(localStorage.getItem("userInfo"))
     : null,
-  token: localStorage.getItem("token") || null,
+  token: localStorage.getItem(AUTH_TOKEN_NAME),
   isSidebarOpen: false,
 };
 
-// Enhance the logout action
-export const logout = createAsyncThunk(
+// Rename this to logoutThunk to avoid naming conflict
+export const logoutThunk = createAsyncThunk(
   "auth/logout",
   async (_, { dispatch }) => {
     try {
@@ -37,18 +39,26 @@ export const logout = createAsyncThunk(
   }
 );
 
+export const setCredentials = createAsyncThunk(
+  'auth/setCredentials',
+  async ({ user, token }, { dispatch }) => {
+    localStorage.setItem(AUTH_TOKEN_NAME, token);
+    localStorage.setItem('userInfo', JSON.stringify(user));
+    return { user, token };
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setCredentials: (state, action) => {
-      const { user, token } = action.payload;
-      state.user = user;
-      state.token = token;
-      
-      // Also store in localStorage for persistence
-      localStorage.setItem("token", token);
-      localStorage.setItem("userInfo", JSON.stringify(user));
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      localStorage.removeItem("userInfo");
+      localStorage.removeItem(AUTH_TOKEN_NAME);
+      // Clear all API cache
+      apiSlice.util.resetApiState();
     },
     setIsSidebarOpen: (state, action) => {
       state.isSidebarOpen = action?.payload;
@@ -56,18 +66,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, setIsSidebarOpen } = authSlice.actions;
-
-export const protectedRoute = (dispatch) => {
-  const token = Cookies.get("token");
-  
-  // Only log out if there's no token but user data exists in localStorage
-  if (!token && localStorage.getItem("userInfo")) {
-    dispatch(logout());
-    return false;
-  }
-
-  return !!token;
-};
+export const { logout, setIsSidebarOpen } = authSlice.actions;
 
 export default authSlice.reducer;

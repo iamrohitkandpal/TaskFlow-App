@@ -3,7 +3,7 @@ import authReducer from "./slices/authSlice";
 import taskReducer from "./slices/taskSlice";
 import { apiSlice } from "./slices/apiSlice";
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
     auth: authReducer,
     tasks: taskReducer,
@@ -11,7 +11,5 @@ const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
-    devTools: true,
+  devTools: true,
 });
-
-export default store;

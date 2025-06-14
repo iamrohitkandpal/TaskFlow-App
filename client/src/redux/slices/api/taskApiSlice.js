@@ -1,22 +1,15 @@
-import { apiSlice } from "../apiSlice";
+import { apiSlice } from '../apiSlice';
+
 const TASK_URL = "/tasks";
 
 export const taskApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getAllTasks: builder.query({
       query: ({ strQuery, isTrashed, search }) => ({
-        url: `${TASK_URL}?stage=${strQuery}&isTrashed=${isTrashed}&search=${search}`,
-        method: "GET",
-        credentials: "include",
+        url: TASK_URL,
+        params: { strQuery, isTrashed, search }
       }),
-    }),
-
-    getDashboardStats: builder.query({
-      query: () => ({
-        url: `${TASK_URL}/dashboard`,
-        method: "GET",
-        credentials: "include",
-      }),
+      providesTags: ['Tasks']
     }),
 
     createTask: builder.mutation({
@@ -38,12 +31,12 @@ export const taskApiSlice = apiSlice.injectEndpoints({
     }),
 
     updateTask: builder.mutation({
-      query: (data) => ({
-        url: `${TASK_URL}/update/${data._id}`,
-        method: "PUT",
-        body: data,
-        credentials: "include",
+      query: ({ id, ...data }) => ({
+        url: `${TASK_URL}/update/${id}`,
+        method: 'PUT',
+        body: data
       }),
+      invalidatesTags: ['Tasks']
     }),
 
     trashTask: builder.mutation({
@@ -82,17 +75,17 @@ export const taskApiSlice = apiSlice.injectEndpoints({
 
     deleteRestoreTask: builder.mutation({
       query: ({ id, actionType }) => ({
-        url: `${TASK_URL}/delete-restore/${id}?actionType=${actionType}`,
-        method: "DELETE",
-        credentials: "include",
+        url: `${TASK_URL}/restore/${id}`,
+        method: 'PUT',
+        body: { actionType }
       }),
-    }),
-  }),
+      invalidatesTags: ['Tasks']
+    })
+  })
 });
 
 export const {
   useGetAllTasksQuery,
-  useGetDashboardStatsQuery,
   useCreateTaskMutation,
   useDuplicateTaskMutation,
   useUpdateTaskMutation,
@@ -100,5 +93,5 @@ export const {
   useCreateSubTaskMutation,
   useGetSingleTaskQuery,
   usePostTaskActivityMutation,
-  useDeleteRestoreTaskMutation,
+  useDeleteRestoreTaskMutation
 } = taskApiSlice;

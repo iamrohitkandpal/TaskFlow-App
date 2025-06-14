@@ -1,45 +1,37 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { fetchBaseQuery, createApi } from '@reduxjs/toolkit/query/react';
+import { logout } from './authSlice';
 import { API_BASE_URL } from '../../config/constants';
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
-    const token = getState().auth?.token;
-    
+    const token = getState().auth.token;
     if (token) {
       headers.set('authorization', `Bearer ${token}`);
     }
-    
     return headers;
-  },
-  credentials: 'include', // Critical for sending cookies with requests
+  }
 });
 
-// Enhanced error logging for debugging
-const baseQueryWithErrorHandling = async (args, api, extraOptions) => {
-  try {
-    const result = await baseQuery(args, api, extraOptions);
+const baseQueryWithReauth = async (args, api, extraOptions) => {
+  let result = await baseQuery(args, api, extraOptions);
+
+  if (result?.error?.status === 401) {
+    // Try to refresh token
+    const refreshResult = await baseQuery('/users/refresh-token', api, extraOptions);
     
-    if (result.error) {
-      console.log('API error:', {
-        url: typeof args === 'string' ? args : args.url,
-        status: result.error.status,
-        data: result.error.data
-      });
+    if (refreshResult?.data) {
+      // Retry original query
+      result = await baseQuery(args, api, extraOptions);
+    } else {
+      api.dispatch(logout());
     }
-    
-    return result;
-  } catch (error) {
-    console.error('API request failed:', error);
-    return {
-      error: { status: 500, data: { message: error.message } }
-    };
   }
+  return result;
 };
 
 export const apiSlice = createApi({
-  reducerPath: 'api',
-  baseQuery: baseQueryWithErrorHandling,
-  tagTypes: ['Tasks', 'Users', 'Projects', 'TeamList', 'Notifications'],
-  endpoints: (builder) => ({})
+  baseQuery: baseQueryWithReauth,
+  endpoints: () => ({})
 });
