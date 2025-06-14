@@ -14,44 +14,50 @@ import { setCredentials } from "../redux/slices/authSlice";
 const AddUser = ({ open, setOpen, userData }) => {
   let defaultValues = userData ?? {};
   const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
 
   const {
-    register,
+    register: registerField, // Rename register to registerField
     handleSubmit,
     formState: { errors },
   } = useForm({ defaultValues });
 
-  const dispatch = useDispatch();
-
-  const [addNewUser, { isLoading }] = useRegisterMutation();
+  const [registerUser, { isLoading }] = useRegisterMutation(); // Rename register to registerUser
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
 
   const handleOnSubmit = async (data) => {
     try {
       if (userData) {
         const result = await updateUser(data).unwrap();
-        toast.success("User Details Updated");
+        if (result?.status) {
+          toast.success("User Details Updated");
 
-        // Ensure the result structure matches what your Redux expects
-        if (userData?._id === user?._id) {
-          dispatch(setCredentials({
-            data: {user: result?.user},
-          }));
+          // Update current user if editing own profile
+          if (userData?._id === user?._id) {
+            dispatch(
+              setCredentials({
+                user: result.user,
+                token: result.token,
+              })
+            );
+          }
         }
       } else {
-        await addNewUser({
+        // Register new user
+        const result = await registerUser({
           ...data,
-          password: data.email,
+          password: data.email, // Using email as default password
         }).unwrap();
-        toast.success("New User Added");
+
+        if (result?.status) {
+          toast.success("New User Added Successfully");
+        }
       }
 
-      setTimeout(() => {
-        setOpen(false);
-      }, 1500);
+      setOpen(false);
     } catch (error) {
-      console.log("Error in handleOnSubmit of addUser: ", error);
-      toast.error("Something went wrong");
+      console.error("Error in handleOnSubmit:", error);
+      toast.error(error?.data?.message || "Something went wrong");
     }
   };
 
@@ -72,7 +78,7 @@ const AddUser = ({ open, setOpen, userData }) => {
               name="name"
               label="Full Name"
               className="w-full rounded"
-              register={register("name", {
+              register={registerField("name", {
                 required: "Full name is required!",
               })}
               error={errors.name ? errors.name.message : ""}
@@ -83,7 +89,7 @@ const AddUser = ({ open, setOpen, userData }) => {
               name="title"
               label="Title"
               className="w-full rounded"
-              register={register("title", {
+              register={registerField("title", {
                 required: "Title is required!",
               })}
               error={errors.title ? errors.title.message : ""}
@@ -94,7 +100,7 @@ const AddUser = ({ open, setOpen, userData }) => {
               name="email"
               label="Email Address"
               className="w-full rounded"
-              register={register("email", {
+              register={registerField("email", {
                 required: "Email Address is required!",
               })}
               error={errors.email ? errors.email.message : ""}
@@ -106,7 +112,7 @@ const AddUser = ({ open, setOpen, userData }) => {
               name="role"
               label="Role"
               className="w-full rounded"
-              register={register("role", {
+              register={registerField("role", {
                 required: "User role is required!",
               })}
               error={errors.role ? errors.role.message : ""}

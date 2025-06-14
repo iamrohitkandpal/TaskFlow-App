@@ -24,7 +24,10 @@ const NotificationPanel = () => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
-  const { data, refetch } = useGetNotificationsQuery();
+  const { data, error, isLoading, refetch } = useGetNotificationsQuery(undefined, {
+    pollingInterval: 30000, // Poll every 30 seconds
+    skip: !navigator.onLine // Skip polling when offline
+  });
   const [markAsRead] = useMarkNotificationAsReadMutation();
 
   const readHandler = async (type, id) => {
@@ -62,6 +65,15 @@ const NotificationPanel = () => {
       onClick: () => readHandler("all", ""),
     },
   ];
+
+  // Show offline state to users
+  if (error?.status === 'FETCH_ERROR') {
+    return (
+      <div className="p-4 text-gray-500">
+        <p>Currently offline. Data will sync when connection is restored.</p>
+      </div>
+    );
+  }
 
   return (
     <>

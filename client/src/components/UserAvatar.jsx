@@ -29,7 +29,7 @@ const UserAvatar = () => {
       
       // Only logout if the server response is successful
       if (result && result.status) {
-        dispatch(logout());
+        dispatch(logout()); // Use logoutThunk instead of logout
         navigate("/login");
         toast.success("Logged out successfully");
       } else {
@@ -37,8 +37,6 @@ const UserAvatar = () => {
       }
     } catch (error) {
       toast.error("Something went wrong");
-      
-      // Don't dispatch logout on error to prevent data inconsistencies
     }
   };
   
