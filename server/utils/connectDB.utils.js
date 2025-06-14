@@ -3,42 +3,20 @@ import jwt from 'jsonwebtoken';
 
 const connectDB = async () => {
   try {
-    // Add reconnect options and better error handling
-    const mongoURI = process.env.MONGODB_URL;
-    
-    if (!mongoURI) {
-      console.error('MongoDB connection string missing! Check your .env file');
-      process.exit(1);
-    }
-    
-    const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000,
-      retryWrites: true,
-      retryReads: true,
-      connectTimeoutMS: 10000,
+    const conn = await mongoose.connect(process.env.MONGODB_URL, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
-    
-    // Add reconnection handling
-    mongoose.connection.on('error', err => {
-      console.error(`MongoDB connection error: ${err}`);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected, attempting to reconnect...');
-    });
-    
     return conn;
   } catch (error) {
-    console.error(`MongoDB connection failed: ${error.message}`);
-    // Don't exit the process, instead return the error
-    throw error;
+    console.error(`Error connecting to MongoDB: ${error.message}`);
+    process.exit(1);
   }
 };
 
 export const createJWT = (res, userId) => {
-  // Your JWT creation code is likely fine
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });

@@ -11,57 +11,21 @@ export const protectedRoute = asyncHandler(async (req, res, next) => {
   }
   
   if (!token) {
-    const error = new Error('Authentication required: No token provided');
-    error.statusCode = 401;
-    throw error;
+    return res.status(401).json({
+      status: false,
+      message: 'Not authorized, no token'
+    });
   }
 
-  // Verify token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (!decoded || !decoded.userId) {
-      const error = new Error('Invalid token format');
-      error.statusCode = 401;
-      throw error;
-    }
-    
-    // Find user with complete data
-    const user = await User.findById(decoded.userId).select('-password');
-    
-    if (!user) {
-      const error = new Error('User not found or has been deleted');
-      error.statusCode = 401;
-      throw error;
-    }
-    
-    if (!user.isActive) {
-      const error = new Error('User account is deactivated');
-      error.statusCode = 403;
-      throw error;
-    }
-    
-    // Set user data on request
-    req.user = {
-      userId: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role || 'User',
-      isAdmin: user.isAdmin || false,
-    };
-    
+    req.user = await User.findById(decoded.userId).select('-password');
     next();
-  } catch (err) {
-    if (err.name === 'JsonWebTokenError') {
-      const error = new Error('Invalid token');
-      error.statusCode = 401;
-      throw error;
-    } else if (err.name === 'TokenExpiredError') {
-      const error = new Error('Token expired');
-      error.statusCode = 401;
-      throw error;
-    }
-    throw err;
+  } catch (error) {
+    return res.status(401).json({
+      status: false, 
+      message: 'Not authorized, token failed'
+    });
   }
 });
 

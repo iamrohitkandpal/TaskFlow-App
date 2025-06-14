@@ -41,27 +41,10 @@ const httpServer = createServer(app);
 
 // More comprehensive CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, etc)
-    if (!origin) return callback(null, true);
-    
-    // Determine allowed origins based on environment
-    const allowedOrigins = NODE_ENV === 'production' 
-      ? (config.ALLOWED_ORIGINS || ['https://taskflow-app.com'])
-      : ['http://localhost:7000', 'http://127.0.0.1:7000', 'http://localhost:3000'];
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`Request from disallowed origin: ${origin}`);
-      callback(new Error('CORS not allowed'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Client-Timestamp', 'X-CSRF-Token'],
+  origin: process.env.CLIENT_URL,
   credentials: true,
-  maxAge: 86400, // 24 hours
-  preflightContinue: false
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
