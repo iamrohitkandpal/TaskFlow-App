@@ -7,19 +7,6 @@
 | Node.js          | 20.x      | Backend runtime                  | Async I/O handling, scalability     |
 | MongoDB          | 6.0+      | Document storage                 | Flexible schema, horizontal scaling |
 
-## 🔮 Roadmap Highlights
-```mermaid
-gantt
-    title Technology Roadmap
-    dateFormat  YYYY-MM-DD
-    section Core
-    TypeScript Migration     :active, 2024-01-01, 2024-06-30
-    GraphQL Adoption         :2024-07-01, 2024-12-31
-    section Performance
-    Edge Caching             :2024-03-01, 2024-05-31
-    WASM Optimizations       :2024-09-01, 2025-02-28
-```
-
 ## 🛠️ DevEx Tooling
 - **Testing**: Jest, React Testing Library, Cypress
 - **Linting**: ESLint + Airbnb config
