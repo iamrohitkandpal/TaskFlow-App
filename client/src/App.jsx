@@ -96,83 +96,27 @@ const MobileSidebar = () => {
 
 function App() {
   const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector(state => state.auth);
 
   useEffect(() => {
-    try {
-      // Check for auth token in localStorage
-      const token = localStorage.getItem('token');
-      const userInfo = localStorage.getItem('userInfo');
-      
-      if (token && userInfo) {
-        const parsedUser = JSON.parse(userInfo);
-        
-        // Dispatch action to set credentials in Redux store
-        dispatch(setCredentials({
-          token,
-          user: parsedUser
-        }));
-        
-        // Add a validation request to check if the token is still valid
-        fetch(`${API_BASE_URL}/users/validate-token`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }).catch(() => {
-          // If token validation fails, log the user out
-          dispatch(logout());
-        });
-      }
-    } catch (error) {
-      console.error('Error in auth check:', error);
-      // Clear potentially corrupted storage data
-      localStorage.removeItem('token');
-      localStorage.removeItem('userInfo');
+    // Check for existing token on app load
+    const storedToken = localStorage.getItem(AUTH_TOKEN_NAME);
+    const storedUser = localStorage.getItem('userInfo');
+    
+    if (storedToken && storedUser) {
+      dispatch(setCredentials({
+        token: storedToken,
+        user: JSON.parse(storedUser)
+      }));
     }
   }, [dispatch]);
 
+  // Initialize socket if authenticated
   useEffect(() => {
-    // Handle network status changes
-    const handleOnline = () => {
-      toast.success('You are back online!');
-      // Trigger sync if user is logged in
-      if (user?._id) {
-        syncDataWithServer(localStorage.getItem(AUTH_TOKEN_NAME))
-          .then(result => {
-            if (result.success) {
-              console.log('Data synchronized successfully after coming online');
-            }
-          })
-          .catch(err => console.error('Failed to sync after coming online:', err));
-      }
-    };
-    
-    const handleOffline = () => {
-      toast.error('You are offline. Some features may be limited.');
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [user]);
-
-  useEffect(() => {
-    // Only initialize socket if user is authenticated
-    if (user?._id) {
-      initializeSocket(user._id);
-      
-      // Add event listeners for socket events here if needed
-      
-      // Proper cleanup
-      return () => {
-        disconnectSocket();
-      };
+    if (token) {
+      initializeSocket(token);
     }
-  }, [user]);
+  }, [token]);
 
   return (
     <ErrorBoundary>

@@ -44,26 +44,9 @@ self.addEventListener('activate', event => {
 // Fetch event - serve from cache if available
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
-      .catch(() => {
-        // If both cache and network fail, serve offline fallback
-        if (event.request.url.indexOf('/api/') !== -1) {
-          return new Response(JSON.stringify({ 
-            success: false, 
-            message: 'No internet connection' 
-          }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-        return caches.match('/offline.html');
-      })
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
   );
 });
 
