@@ -9,7 +9,8 @@ const instance = axios.create({
   timeout: 15000, // 15 seconds timeout
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // Add this line
 });
 
 // Request interceptor - adds auth token if available

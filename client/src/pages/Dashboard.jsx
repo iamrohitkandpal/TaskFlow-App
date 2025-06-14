@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   MdAdminPanelSettings,
   MdKeyboardArrowDown,
   MdKeyboardArrowUp,
   MdKeyboardDoubleArrowUp,
 } from "react-icons/md";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import { LuClipboardPen } from "react-icons/lu";
 import { FaNewspaper, FaUsers } from "react-icons/fa";
@@ -14,10 +15,14 @@ import clsx from "clsx";
 import Chart from "../components/Chart";
 import { BGS, getInitials, PRIOTITYSTYELS, TASK_TYPE } from "../utils";
 import UserInfo from "../components/UserInfo";
-import { useGetDashboardStatsQuery, useGetProductivityDataQuery } from "../redux/slices/api/taskApiSlice";
+import { 
+  useGetDashboardStatsQuery,
+  useGetProductivityDataQuery 
+} from "../redux/slices/api/analyticsApiSlice";
 import Loader from "./../components/Loader";
 import ActivityFeed from "../components/ActivityFeed";
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
+import { useSelector } from "react-redux";
 
 const TaskHeader = () => (
   <thead className="border-b border-gray-300">
@@ -198,9 +203,24 @@ const StatisticsSection = () => {
 };
 
 const Dashboard = () => {
+  const { user, token } = useSelector((state) => state.auth);
   const { data: productivityData, error: productivityError, isLoading: isLoadingProductivity } = useGetProductivityDataQuery();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Redirect to login if no token
+    if (!token) {
+      navigate('/login');
+    }
+  }, [token, navigate]);
 
-  if (isLoadingProductivity) return <Loader />;
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (isLoadingProductivity) {
+    return <Loader />;
+  }
   
   if (productivityError) {
     return (
